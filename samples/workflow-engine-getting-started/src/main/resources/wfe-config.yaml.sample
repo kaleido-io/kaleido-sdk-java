@@ -1,0 +1,8 @@
+workflow-engine:
+  url: ws://localhost:5503/ws
+  providerName: java-sample-provider
+  auth:
+    type: token
+    token: ""
+    header: Authorization
+    scheme: Bearer
