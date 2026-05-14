@@ -5,7 +5,7 @@
 package io.kaleido.wfe.sdk.client;
 
 import com.sun.net.httpserver.HttpServer;
-import io.kaleido.wfe.sdk.config.ClientConfig;
+import io.kaleido.wfe.sdk.config.RuntimeConfig;
 import io.kaleido.wfe.sdk.handlers.HandlerSetFor;
 import io.kaleido.wfe.sdk.handlers.TransactionHandler;
 import io.kaleido.wfe.sdk.protocol.*;
@@ -66,7 +66,7 @@ class WFEWebSocketClientTest {
 
     @Test
     void clientConfigAndConnect() {
-        var config = ClientConfig.builder()
+        var config = RuntimeConfig.builder()
                 .url(URI.create("ws://localhost:19999/ws"))
                 .providerName("test-provider")
                 .maxAttempts(1)

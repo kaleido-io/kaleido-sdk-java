@@ -16,6 +16,13 @@
   {"type": "io.kaleido.wfe.sdk.protocol.ListenerEvent"},
   {"type": "io.kaleido.wfe.sdk.protocol.WSEventProcessorBatchRequest"},
   {"type": "io.kaleido.wfe.sdk.protocol.WSEventProcessorBatchResult"},
+  {"type": "io.kaleido.wfe.sdk.protocol.WSEventSourceConfig"},
+  {"type": "io.kaleido.wfe.sdk.protocol.WSEventSourceValidateConfig"},
+  {"type": "io.kaleido.wfe.sdk.protocol.WSEventSourceValidateConfigResult"},
+  {"type": "io.kaleido.wfe.sdk.protocol.WSEventSourcePoll"},
+  {"type": "io.kaleido.wfe.sdk.protocol.WSEventSourcePollResult"},
+  {"type": "io.kaleido.wfe.sdk.protocol.WSEventSourceDelete"},
+  {"type": "io.kaleido.wfe.sdk.protocol.WSEventSourceDeleteResult"},
   {"type": "io.kaleido.wfe.sdk.protocol.AsyncTransactionInput"},
   {"type": "io.kaleido.wfe.sdk.protocol.IdempotentSubmitResult"},
   {"type": "io.kaleido.wfe.sdk.protocol.WSEngineAPISubmitTransactions"},
@@ -24,5 +31,12 @@
   {"type": "io.kaleido.wfe.sdk.stage.EvalResultType"},
   {"type": "io.kaleido.wfe.sdk.config.AuthConfig$BasicAuth"},
   {"type": "io.kaleido.wfe.sdk.config.AuthConfig$TokenAuth"},
-  {"type": "io.kaleido.wfe.sdk.config.AuthConfig$CustomHeaders"}
+  {"type": "io.kaleido.wfe.sdk.config.AuthConfig$CustomHeaders"},
+  {"type": "io.kaleido.wfe.sdk.config.RuntimeConfig"},
+  {"type": "io.kaleido.wfe.sdk.config.ServerConfig"},
+  {"type": "io.kaleido.wfe.sdk.config.ServerConfig$TlsConfig"},
+  {"type": "io.kaleido.wfe.sdk.BuildInfo"},
+  {"type": "io.kaleido.wfe.sdk.dispatch.WFEDispatcher"},
+  {"type": "io.kaleido.wfe.sdk.server.WFEWebSocketServer"},
+  {"type": "io.kaleido.wfe.sdk.server.WFEWebSocketServer$WFEServerEndpoint"}
 ]

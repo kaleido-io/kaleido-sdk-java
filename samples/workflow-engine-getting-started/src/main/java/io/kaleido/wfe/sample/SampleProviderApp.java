@@ -5,7 +5,7 @@
 package io.kaleido.wfe.sample;
 
 import io.kaleido.wfe.sdk.client.WFEWebSocketClient;
-import io.kaleido.wfe.sdk.config.ClientConfig;
+import io.kaleido.wfe.sdk.config.RuntimeConfig;
 import io.kaleido.wfe.sdk.handlers.HandlerSetFor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -22,11 +22,11 @@ public class SampleProviderApp {
         SpringApplication.run(SampleProviderApp.class, args);
     }
 
-    private static ClientConfig resolveConfig() {
+    private static RuntimeConfig resolveConfig() {
         // 1. WFE_CONFIG_FILE env var takes highest precedence
         var envPath = System.getenv("WFE_CONFIG_FILE");
         if (envPath != null && !envPath.isBlank()) {
-            return ClientConfig.fromYaml(Path.of(envPath));
+            return RuntimeConfig.fromYaml(Path.of(envPath));
         }
 
         // 2. Classpath resource (standard Spring Boot convention)
@@ -34,14 +34,14 @@ public class SampleProviderApp {
                 .getResourceAsStream("wfe-config.yaml");
         if (classpathStream != null) {
             try (classpathStream) {
-                return ClientConfig.fromYaml(classpathStream);
+                return RuntimeConfig.fromYaml(classpathStream);
             } catch (Exception e) {
                 throw new RuntimeException("Failed to load classpath wfe-config.yaml", e);
             }
         }
 
         // 3. Filesystem fallback: config/wfe-config.yaml
-        return ClientConfig.fromYaml(Path.of("config/wfe-config.yaml"));
+        return RuntimeConfig.fromYaml(Path.of("config/wfe-config.yaml"));
     }
 
     @Bean

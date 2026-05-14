@@ -6,7 +6,8 @@ package io.kaleido.wfe.sdk.client;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.kaleido.wfe.sdk.config.AuthConfig;
-import io.kaleido.wfe.sdk.config.ClientConfig;
+import io.kaleido.wfe.sdk.config.RuntimeConfig;
+import io.kaleido.wfe.sdk.dispatch.WFEDispatcher;
 import io.kaleido.wfe.sdk.errors.SDKErrors;
 import io.kaleido.wfe.sdk.handlers.*;
 import io.kaleido.wfe.sdk.protocol.*;
@@ -28,7 +29,7 @@ public class WFEWebSocketClient implements EngineAPI, Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(WFEWebSocketClient.class);
 
-    private final ClientConfig config;
+    private final RuntimeConfig config;
     private final HandlerSet handlerSet;
     private final Map<String, Handler> handlers = new ConcurrentHashMap<>();
     private final AtomicBoolean connected = new AtomicBoolean(false);
@@ -40,6 +41,7 @@ public class WFEWebSocketClient implements EngineAPI, Closeable {
     private final AtomicReference<String> activeRequestId = new AtomicReference<>();
 
     private volatile WebSocket webSocket;
+    private WFEDispatcher dispatcher;
     private final ExecutorService dispatchExecutor = Executors.newVirtualThreadPerTaskExecutor();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         var t = new Thread(r, "wfe-scheduler");
@@ -49,7 +51,7 @@ public class WFEWebSocketClient implements EngineAPI, Closeable {
     private ScheduledFuture<?> heartbeatTask;
     private final AtomicLong lastPong = new AtomicLong(System.currentTimeMillis());
 
-    public WFEWebSocketClient(ClientConfig config, HandlerSet handlerSet) {
+    public WFEWebSocketClient(RuntimeConfig config, HandlerSet handlerSet) {
         this.config = config;
         this.handlerSet = handlerSet;
     }
@@ -59,6 +61,7 @@ public class WFEWebSocketClient implements EngineAPI, Closeable {
         for (var h : handlerList) {
             handlers.put(h.name(), h);
         }
+        this.dispatcher = new WFEDispatcher(handlers, activeRequestId);
         return connectWithRetry(0);
     }
 
@@ -111,19 +114,8 @@ public class WFEWebSocketClient implements EngineAPI, Closeable {
     }
 
     private void registerProviderAndHandlers(WebSocket ws) {
-        sendJson(ws, WSRegisterProvider.of(config.providerName(), config.providerMetadata()));
-
-        for (var handler : handlers.values()) {
-            WSHandlerType type;
-            if (handler instanceof TransactionHandler) {
-                type = WSHandlerType.TRANSACTION_HANDLER;
-            } else if (handler instanceof EventProcessor) {
-                type = WSHandlerType.EVENT_PROCESSOR;
-            } else {
-                continue;
-            }
-            sendJson(ws, WSRegisterHandler.of(handler.name(), type));
-        }
+        WFEDispatcher.sendRegistration(config.providerName(), config.providerMetadata(),
+                handlers, msg -> sendJson(ws, msg));
     }
 
     private void startHeartbeat() {
@@ -158,67 +150,16 @@ public class WFEWebSocketClient implements EngineAPI, Closeable {
             }
 
             switch (envelope.messageType()) {
-                case HANDLE_TRANSACTIONS -> dispatchExecutor.submit(() -> handleTransactions(json));
-                case EVENT_PROCESSOR_BATCH -> dispatchExecutor.submit(() -> handleEventProcessorBatch(json));
                 case ENGINE_API_SUBMIT_TRANSACTIONS_RESULT -> completeInflight(envelope.id(), json);
-                case PROTOCOL_ERROR -> log.error("Protocol error from server: {}", envelope.error());
-                default -> log.debug("Unhandled message type: {}", envelope.messageType());
+                // EVENT_SOURCE_CONFIG MUST run synchronously so it is visible to the
+                // next poll for the same stream (Go invariant; see WFEDispatcher).
+                case EVENT_SOURCE_CONFIG, PROTOCOL_ERROR ->
+                        dispatcher.dispatch(envelope, json, msg -> sendJson(webSocket, msg));
+                default -> dispatchExecutor.submit(() ->
+                        dispatcher.dispatch(envelope, json, msg -> sendJson(webSocket, msg)));
             }
         } catch (Exception e) {
             log.error("Failed to parse WS message", e);
-        }
-    }
-
-    private void handleTransactions(String json) {
-        try {
-            var request = JSON.MAPPER.readValue(json, WSHandleTransactions.class);
-            var handler = handlers.get(request.handler());
-            if (handler instanceof TransactionHandler txnHandler) {
-                activeRequestId.set(request.id());
-                try {
-                    var result = txnHandler.handleTransactionBatch(request);
-                    sendJson(webSocket, result);
-                } finally {
-                    activeRequestId.set(null);
-                }
-            } else {
-                var errorResult = WSHandleTransactionsResult.error(request,
-                        "Handler not found: " + request.handler());
-                sendJson(webSocket, errorResult);
-            }
-        } catch (Exception e) {
-            log.error("Error handling transactions", e);
-            try {
-                var envelope = JSON.MAPPER.readValue(json, WSEnvelope.class);
-                var errorResult = new WSHandleTransactionsResult(
-                        WSMessageType.HANDLE_TRANSACTIONS_RESULT,
-                        envelope.id(), null, envelope.handler(), e.getMessage(), null, null);
-                sendJson(webSocket, errorResult);
-            } catch (Exception ex) {
-                log.error("Failed to send error response", ex);
-            }
-        }
-    }
-
-    private void handleEventProcessorBatch(String json) {
-        try {
-            var request = JSON.MAPPER.readValue(json, WSEventProcessorBatchRequest.class);
-            var handler = handlers.get(request.handler());
-            if (handler instanceof EventProcessor ep) {
-                activeRequestId.set(request.id());
-                try {
-                    var result = ep.processEvents(request);
-                    sendJson(webSocket, result);
-                } finally {
-                    activeRequestId.set(null);
-                }
-            } else {
-                var errorResult = WSEventProcessorBatchResult.error(request,
-                        "Handler not found: " + request.handler());
-                sendJson(webSocket, errorResult);
-            }
-        } catch (Exception e) {
-            log.error("Error handling event processor batch", e);
         }
     }
 

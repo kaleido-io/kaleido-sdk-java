@@ -1,0 +1,8 @@
+kaleido:
+  workflow-engine:
+    providerName: erc20-sample-provider
+    url: ${WFE_URL:http://localhost:5000/rest}
+    auth:
+      type: ${WFE_AUTH_TYPE:basic}
+      username: ${WFE_AUTH_USERNAME:}
+      password: ${WFE_AUTH_PASSWORD:}

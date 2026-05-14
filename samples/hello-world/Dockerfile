@@ -1,0 +1,18 @@
+FROM ghcr.io/graalvm/native-image-community:21 AS builder
+WORKDIR /build
+COPY ../../gradlew ../../gradlew.bat ./
+COPY ../../gradle ./gradle/
+COPY ../../build.gradle.kts ../../settings.gradle.kts ./
+COPY ../../workflow-engine-sdk ./workflow-engine-sdk/
+COPY ../../workflow-engine-sdk-spring-boot-starter ./workflow-engine-sdk-spring-boot-starter/
+COPY ../../samples ./samples/
+RUN ./gradlew publishToMavenLocal --no-daemon
+RUN cd samples && ./gradlew :hello-world:nativeCompile --no-daemon
+
+FROM gcr.io/distroless/base-debian12
+WORKDIR /app
+COPY --from=builder /build/samples/hello-world/build/native/nativeCompile/hello-world /app/hello-world
+
+EXPOSE 5503
+USER nonroot
+ENTRYPOINT ["/app/hello-world"]

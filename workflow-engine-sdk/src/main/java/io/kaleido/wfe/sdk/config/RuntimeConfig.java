@@ -14,12 +14,25 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public record ClientConfig(
+/**
+ * Runtime configuration for the workflow-engine SDK.
+ *
+ * <p>Describes both outbound (SDK dials engine) and server mode (engine dials SDK).
+ * In outbound mode {@link #url()} and {@link #auth()} drive a {@code WFEWebSocketClient};
+ * in server mode {@link #server()} drives a {@code WFEWebSocketServer}. The two
+ * blocks are mutually exclusive -- setting both in YAML fails with
+ * {@link SDKErrors#MUTUALLY_EXCLUSIVE_CONFIG}.
+ *
+ * <p>See {@code .cursor/plans/go-sdk.md} for the protocol source of truth.
+ */
+public record RuntimeConfig(
         URI url,
+        ServerConfig server,
         String providerName,
         JsonNode providerMetadata,
         AuthConfig auth,
@@ -40,7 +53,7 @@ public record ClientConfig(
         return new Builder();
     }
 
-    public static ClientConfig fromYaml(Path file) {
+    public static RuntimeConfig fromYaml(Path file) {
         try {
             var content = Files.readString(file);
             var root = YAML_MAPPER.readTree(content);
@@ -56,7 +69,7 @@ public record ClientConfig(
         }
     }
 
-    public static ClientConfig fromYaml(java.io.InputStream inputStream) {
+    public static RuntimeConfig fromYaml(java.io.InputStream inputStream) {
         try {
             var root = YAML_MAPPER.readTree(inputStream);
             var wfe = root.path("workflow-engine");
@@ -71,7 +84,7 @@ public record ClientConfig(
         }
     }
 
-    public static ClientConfig fromEnv() {
+    public static RuntimeConfig fromEnv() {
         var configFile = System.getenv(ENV_CONFIG_FILE);
         if (configFile == null || configFile.isEmpty()) {
             throw SDKErrors.error(SDKErrors.CONFIG_FILE_NOT_SET,
@@ -80,7 +93,7 @@ public record ClientConfig(
         return fromYaml(Path.of(configFile));
     }
 
-    private static ClientConfig parseYamlNode(JsonNode wfe) {
+    private static RuntimeConfig parseYamlNode(JsonNode wfe) {
         var b = builder();
 
         var providerName = wfe.has("providerName") ? wfe.get("providerName").asText() : null;
@@ -104,23 +117,72 @@ public record ClientConfig(
         }
 
         var urlStr = wfe.has("url") ? wfe.get("url").asText("") : "";
+        var hasUrl = !urlStr.isEmpty();
         var hasAuth = wfe.has("auth") && wfe.get("auth").isObject();
         var hasServer = wfe.has("server") && wfe.get("server").isObject();
 
-        if (!urlStr.isEmpty() && hasAuth) {
+        if (hasUrl && hasServer) {
+            throw SDKErrors.error(SDKErrors.MUTUALLY_EXCLUSIVE_CONFIG,
+                    "Cannot set both 'url' and 'server' in workflow-engine config; pick one mode");
+        }
+
+        if (hasServer) {
+            b.server(parseServer(wfe.get("server")));
+        } else if (hasUrl) {
             b.url(URI.create(httpUrlToWsUrl(urlStr)));
-            b.auth(parseAuth(wfe.get("auth")));
-        } else if (hasServer) {
-            // Inbound/hosted mode -- no URL, no auth needed from YAML
-        } else if (!urlStr.isEmpty()) {
-            throw SDKErrors.error(SDKErrors.CONFIG_FILE_READ_FAILED,
-                    "Missing url or auth in workflow-engine config");
+            if (hasAuth) {
+                b.auth(parseAuth(wfe.get("auth")));
+            }
         } else {
             throw SDKErrors.error(SDKErrors.CONFIG_FILE_READ_FAILED,
-                    "Missing url or auth in workflow-engine config");
+                    "Missing 'url' or 'server' in workflow-engine config");
         }
 
         return b.build();
+    }
+
+    private static ServerConfig parseServer(JsonNode server) {
+        var address = server.has("address") ? server.get("address").asText("0.0.0.0") : "0.0.0.0";
+        var port = server.has("port") ? server.get("port").asInt(0) : 0;
+        if (port <= 0) {
+            throw SDKErrors.error(SDKErrors.CONFIG_FILE_READ_FAILED,
+                    "server.port must be a positive integer");
+        }
+        var heartbeat = server.has("heartbeatInterval")
+                ? parseTimeString(asTimeString(server.get("heartbeatInterval")))
+                : Duration.ofSeconds(15);
+        var rps = server.has("requestsPerSecond") ? server.get("requestsPerSecond").asInt(0) : 0;
+        var burst = server.has("burst") ? server.get("burst").asInt(0) : 0;
+        var readBuf = server.has("readBufferSize") ? server.get("readBufferSize").asInt(0) : 0;
+        var writeBuf = server.has("writeBufferSize") ? server.get("writeBufferSize").asInt(0) : 0;
+        ServerConfig.TlsConfig tls = null;
+        if (server.has("tls") && server.get("tls").isObject()) {
+            tls = parseTls(server.get("tls"));
+        }
+        return new ServerConfig(address, port, heartbeat, rps, burst, readBuf, writeBuf, tls);
+    }
+
+    private static ServerConfig.TlsConfig parseTls(JsonNode tls) {
+        var enabled = tls.has("enabled") && tls.get("enabled").asBoolean(false);
+        var certFile = tls.has("certFile") ? tls.get("certFile").asText(null) : null;
+        var keyFile = tls.has("keyFile") ? tls.get("keyFile").asText(null) : null;
+        var caFile = tls.has("caFile") ? tls.get("caFile").asText(null) : null;
+        var clientAuth = tls.has("clientAuth") && tls.get("clientAuth").asBoolean(false);
+        Map<String, String> required = null;
+        if (tls.has("requiredDNAttributes") && tls.get("requiredDNAttributes").isObject()) {
+            required = new LinkedHashMap<>();
+            var attrs = tls.get("requiredDNAttributes");
+            var it = attrs.fields();
+            while (it.hasNext()) {
+                var e = it.next();
+                required.put(e.getKey(), e.getValue().asText());
+            }
+        }
+        return new ServerConfig.TlsConfig(enabled, certFile, keyFile, caFile, clientAuth, required);
+    }
+
+    private static String asTimeString(JsonNode node) {
+        return node.isNumber() ? String.valueOf(node.asInt()) : node.asText();
     }
 
     private static AuthConfig parseAuth(JsonNode auth) {
@@ -192,6 +254,7 @@ public record ClientConfig(
 
     public static class Builder {
         private URI url;
+        private ServerConfig server;
         private String providerName;
         private JsonNode providerMetadata;
         private AuthConfig auth;
@@ -205,6 +268,7 @@ public record ClientConfig(
         private Duration resultTimeout = Duration.ofMinutes(2);
 
         public Builder url(URI url) { this.url = url; return this; }
+        public Builder server(ServerConfig s) { this.server = s; return this; }
         public Builder providerName(String n) { this.providerName = n; return this; }
         public Builder providerMetadata(JsonNode m) { this.providerMetadata = m; return this; }
         public Builder auth(AuthConfig a) { this.auth = a; return this; }
@@ -217,8 +281,8 @@ public record ClientConfig(
         public Builder pongTimeout(Duration d) { this.pongTimeout = d; return this; }
         public Builder resultTimeout(Duration d) { this.resultTimeout = d; return this; }
 
-        public ClientConfig build() {
-            return new ClientConfig(url, providerName, providerMetadata, auth, extraHeaders,
+        public RuntimeConfig build() {
+            return new RuntimeConfig(url, server, providerName, providerMetadata, auth, extraHeaders,
                     reconnectDelay, maxReconnectDelay, reconnectDelayFactor, maxAttempts,
                     heartbeatInterval, pongTimeout, resultTimeout);
         }

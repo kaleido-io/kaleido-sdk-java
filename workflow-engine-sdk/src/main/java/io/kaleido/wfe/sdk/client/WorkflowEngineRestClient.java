@@ -5,8 +5,7 @@
 package io.kaleido.wfe.sdk.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.kaleido.wfe.sdk.config.AuthConfig;
-import io.kaleido.wfe.sdk.config.ClientConfig;
+import io.kaleido.wfe.sdk.config.RuntimeConfig;
 import io.kaleido.wfe.sdk.errors.SDKErrors;
 import io.kaleido.wfe.sdk.protocol.JSON;
 import org.slf4j.Logger;
@@ -34,14 +33,14 @@ public class WorkflowEngineRestClient {
     private final String authHeaderName;
     private final Map<String, String> extraHeaders;
 
-    public WorkflowEngineRestClient(ClientConfig config) {
+    public WorkflowEngineRestClient(RuntimeConfig config) {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(30))
                 .build();
         this.extraHeaders = config.extraHeaders() != null ? config.extraHeaders() : Map.of();
 
         if (config.url() != null) {
-            this.baseUrl = URI.create(ClientConfig.wsUrlToRestUrl(config.url().toString()));
+            this.baseUrl = URI.create(RuntimeConfig.wsUrlToRestUrl(config.url().toString()));
         } else {
             var account = System.getenv("ACCOUNT");
             var environment = System.getenv("ENVIRONMENT");
