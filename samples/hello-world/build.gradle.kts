@@ -12,9 +12,6 @@ java {
 
 dependencies {
     implementation("io.kaleido:workflow-engine-sdk-spring-boot-starter:26.5.0-rc.0")
-    implementation("org.springframework.boot:spring-boot-starter")
+    implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
-
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("io.kaleido:workflow-engine-sdk:26.5.0-rc.0")
 }

@@ -12,5 +12,6 @@ public enum PatchOpType {
     @JsonProperty("replace") REPLACE,
     @JsonProperty("move")    MOVE,
     @JsonProperty("copy")    COPY,
-    @JsonProperty("test")    TEST;
+    @JsonProperty("test")    TEST,
+    @JsonProperty("jsonata") JSONATA;
 }

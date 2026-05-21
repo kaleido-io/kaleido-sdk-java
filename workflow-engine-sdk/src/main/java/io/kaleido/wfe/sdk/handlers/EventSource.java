@@ -15,10 +15,9 @@ import io.kaleido.wfe.sdk.protocol.*;
  * {@code workflow-engine/pkg/enginesdk/handler_runtime.go} for the dispatch order
  * (config first, polls strictly after, validate/poll/delete may run concurrently).
  *
- * <p>{@link #onConfigChanged(String)} is invoked synchronously by the dispatcher
- * when a {@link WSEventSourceConfig} arrives for a stream that had been
- * configured before. Implementations must complete the call before
- * the next {@link #poll(WSEventSourcePoll)} for the same stream is dispatched.
+ * <p>{@link #onConfigChanged(WSEventSourceConfig)} is invoked synchronously by the dispatcher
+ * when a {@link WSEventSourceConfig} arrives for a stream. Implementations must complete the
+ * call before the next {@link #poll(WSEventSourcePoll)} for the same stream is dispatched.
  */
 public interface EventSource extends Handler {
     WSEventSourceValidateConfigResult validateConfig(WSEventSourceValidateConfig request) throws Exception;
@@ -27,5 +26,5 @@ public interface EventSource extends Handler {
 
     WSEventSourceDeleteResult delete(WSEventSourceDelete request) throws Exception;
 
-    default void onConfigChanged(String streamId) throws Exception {}
+    default void onConfigChanged(WSEventSourceConfig request) throws Exception {}
 }

@@ -5,14 +5,18 @@
 package io.kaleido.wfe.sdk.stage;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.kaleido.wfe.sdk.handlers.EngineAPI;
 import io.kaleido.wfe.sdk.handlers.TransactionHandler;
 import io.kaleido.wfe.sdk.protocol.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.regex.Pattern;
 
 public abstract class DirectedTransactionHandler<T extends WithStageDirector> implements TransactionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(DirectedTransactionHandler.class);
 
     private final String handlerName;
     private final Map<String, DirectedActionConfig<T>> actionMap;
@@ -39,7 +43,6 @@ public abstract class DirectedTransactionHandler<T extends WithStageDirector> im
     protected List<WSHandleTransactionResult> evalDirected(List<WSHandleTransaction> transactions) throws Exception {
         var results = new WSHandleTransactionResult[transactions.size()];
 
-        // Group by action
         var byAction = new LinkedHashMap<String, List<int[]>>();
         var parsedInputs = new ArrayList<T>();
         var rawInputs = new ArrayList<JsonNode>();
@@ -80,7 +83,7 @@ public abstract class DirectedTransactionHandler<T extends WithStageDirector> im
                             return StageDirectorHelper.mapOutput(
                                     parsed.getStageDirector(), evalResult, rawInput);
                         } catch (Exception e) {
-                            return WSHandleTransactionResult.error(e.getMessage());
+                            return classifyAndMap(parsed.getStageDirector(), e, rawInput);
                         }
                     });
                 }
@@ -105,5 +108,29 @@ public abstract class DirectedTransactionHandler<T extends WithStageDirector> im
         }
 
         return Arrays.asList(results);
+    }
+
+    private WSHandleTransactionResult classifyAndMap(StageDirector director, Exception e, JsonNode rawInput) {
+        var errorMap = director.errorMap();
+        if (errorMap != null && !errorMap.isEmpty()) {
+            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+            for (var mapping : errorMap) {
+                if (mapping.pattern() == null) continue;
+                try {
+                    if (Pattern.compile(mapping.pattern()).matcher(msg).find()) {
+                        var classified = switch (mapping.type()) {
+                            case HARD_FAILURE -> EvalResult.hardFailure(msg);
+                            case TRANSIENT_ERROR -> EvalResult.transientError(msg);
+                            case FIXABLE_ERROR -> EvalResult.fixableError(msg);
+                            default -> EvalResult.transientError(msg);
+                        };
+                        return StageDirectorHelper.mapOutput(director, classified, rawInput);
+                    }
+                } catch (Exception regexEx) {
+                    log.warn("Invalid errorMap regex pattern '{}': {}", mapping.pattern(), regexEx.getMessage());
+                }
+            }
+        }
+        return WSHandleTransactionResult.error(e.getMessage());
     }
 }

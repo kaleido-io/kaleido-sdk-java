@@ -1,0 +1,35 @@
+operations:
+- name: greet
+  type: asynchronous
+  stage: say-hello
+  inputSchema: {
+    "type": "object",
+    "properties": {
+      "name": {"type": "string"}
+    },
+    "required": ["name"],
+    "additionalProperties": false
+  }
+
+stages:
+- name: say-hello
+  type: pending
+  handler: greeter
+  inputMap:
+    jsonata: |
+      {
+        "action": "greet",
+        "nextStage": "done",
+        "failureStage": "failed",
+        "outputPath": "/greeting",
+        "name": state.input.name
+      }
+- name: done
+  type: success
+- name: failed
+  type: failure
+
+handlerBindings:
+  greeter:
+    provider: provider1
+    providerHandler: greeter

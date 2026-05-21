@@ -177,6 +177,7 @@ The `WFE_CONFIG_FILE` environment variable can point to a standalone YAML file, 
 |----------|-------------|
 | `workflow-engine-sdk` | Core library: client, server, protocol, handlers, stage director |
 | `workflow-engine-sdk-spring-boot-starter` | Auto-configuration, `@KaleidoTransactionHandler` / `@KaleidoEventProcessor` annotations, health indicator, Micrometer metrics |
+| `workflow-engine-sdk-component-test` | Component tests that run against a real WFE + Postgres (not published) |
 
 ## Support matrix
 
@@ -189,8 +190,66 @@ The `WFE_CONFIG_FILE` environment variable can point to a standalone YAML file, 
 ## Development
 
 ```bash
-./gradlew build                    # compile + test
+./gradlew build                    # compile + unit tests
 ./gradlew publishToMavenLocal      # install to ~/.m2
 ./gradlew javadoc                  # generate Javadoc HTML
 ```
 
+### Component tests
+
+Component tests run SDK handlers against a real Workflow Engine backed by Postgres.
+They support two modes -- choose whichever fits your setup:
+
+| Mode | What it does | Prerequisites |
+|------|--------------|---------------|
+| **source** | Builds WFE from the sibling `firefly-enterprise/` repo, runs it as a subprocess | Go toolchain, sibling repo checkout |
+| **docker** | Runs WFE + Postgres as containers via Docker Compose | Docker only |
+
+Mode is selected via `WFE_TEST_MODE` env var (`source` or `docker`). If unset, it auto-detects: source mode if Go and the sibling repo are present, otherwise Docker.
+
+#### Running component tests
+
+```bash
+# Docker mode (default if no sibling repo)
+WFE_TEST_MODE=docker ./gradlew :workflow-engine-sdk-component-test:componentTest
+
+# Source mode (requires ../firefly-enterprise and Go)
+WFE_TEST_MODE=source ./gradlew :workflow-engine-sdk-component-test:componentTest
+
+# Or let it auto-detect
+./gradlew :workflow-engine-sdk-component-test:componentTest
+```
+
+If using a custom WFE image (Docker mode):
+
+```bash
+WFE_TEST_MODE=docker WFE_IMAGE=my-registry/workflow-engine:dev ./gradlew :workflow-engine-sdk-component-test:componentTest
+```
+
+If the sibling repo is in a non-default location (source mode):
+
+```bash
+FIREFLY_ENTERPRISE_DIR=/path/to/firefly-enterprise ./gradlew :workflow-engine-sdk-component-test:componentTest
+```
+
+#### Lifecycle tasks
+
+These are available under the `:workflow-engine-sdk-component-test` project:
+
+```bash
+./gradlew :workflow-engine-sdk-component-test:startDb     # start Postgres only (source mode)
+./gradlew :workflow-engine-sdk-component-test:startWfe    # start Postgres + WFE containers (Docker mode)
+./gradlew :workflow-engine-sdk-component-test:teardown    # stop and remove containers + volumes
+```
+
+#### Cleaning up
+
+To remove all Docker containers and volumes created by component tests:
+
+```bash
+./gradlew componentTestClean
+# or scoped to the subproject:
+./gradlew :workflow-engine-sdk-component-test:componentTestClean
+```
+
+This tears down both the source-mode Postgres container and the Docker-mode WFE + Postgres stack, including associated volumes.

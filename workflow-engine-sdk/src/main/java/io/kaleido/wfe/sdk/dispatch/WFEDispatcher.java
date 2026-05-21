@@ -180,7 +180,7 @@ public class WFEDispatcher {
                 log.warn("EventSource config for unknown handler: {}", request.handler());
                 return;
             }
-            es.onConfigChanged(request.streamId());
+            es.onConfigChanged(request);
         } catch (Throwable t) {
             log.error("Error processing event source config", t);
         }

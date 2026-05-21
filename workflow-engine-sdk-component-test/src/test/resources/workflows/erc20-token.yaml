@@ -1,0 +1,153 @@
+operations:
+- name: deploy
+  type: asynchronous
+  stage: prepare-deploy
+  inputSchema: {
+    "type": "object",
+    "properties": {
+      "tokenName": {"type": "string"},
+      "tokenSymbol": {"type": "string"},
+      "initialSupply": {"type": "integer"}
+    },
+    "required": ["tokenName", "tokenSymbol", "initialSupply"],
+    "additionalProperties": false
+  }
+- name: mint
+  type: asynchronous
+  stage: prepare-mint
+  inputSchema: {
+    "type": "object",
+    "properties": {
+      "to": {"type": "string"},
+      "amount": {"type": "integer"}
+    },
+    "required": ["to", "amount"],
+    "additionalProperties": false
+  }
+- name: transfer
+  type: asynchronous
+  stage: prepare-transfer
+  inputSchema: {
+    "type": "object",
+    "properties": {
+      "from": {"type": "string"},
+      "to": {"type": "string"},
+      "amount": {"type": "integer"}
+    },
+    "required": ["from", "to", "amount"],
+    "additionalProperties": false
+  }
+
+stages:
+# -- deploy flow --
+- name: prepare-deploy
+  type: pending
+  handler: token-handler
+  inputMap:
+    jsonata: |
+      {
+        "stageDirector": {
+          "action": "prepare-deploy",
+          "nextStage": "submit-deploy",
+          "failureStage": "failed",
+          "outputPath": "/prepare"
+        },
+        "tokenName": state.input.tokenName,
+        "tokenSymbol": state.input.tokenSymbol,
+        "initialSupply": state.input.initialSupply
+      }
+- name: submit-deploy
+  type: pending
+  handler: token-handler
+  inputMap:
+    jsonata: |
+      {
+        "stageDirector": {
+          "action": "submit-deploy",
+          "nextStage": "deployed",
+          "failureStage": "failed",
+          "outputPath": "/result"
+        },
+        "txData": state.prepare
+      }
+- name: deployed
+  type: success
+- name: failed
+  type: failure
+  defaultFailure: true
+
+# -- mint flow --
+- name: prepare-mint
+  type: pending
+  handler: token-handler
+  inputMap:
+    jsonata: |
+      {
+        "stageDirector": {
+          "action": "prepare-mint",
+          "nextStage": "submit-mint",
+          "failureStage": "mint-failed",
+          "outputPath": "/prepare"
+        },
+        "to": state.input.to,
+        "amount": state.input.amount
+      }
+- name: submit-mint
+  type: pending
+  handler: token-handler
+  inputMap:
+    jsonata: |
+      {
+        "stageDirector": {
+          "action": "submit-mint",
+          "nextStage": "minted",
+          "failureStage": "mint-failed",
+          "outputPath": "/result"
+        },
+        "txData": state.prepare
+      }
+- name: minted
+  type: success
+- name: mint-failed
+  type: failure
+
+# -- transfer flow --
+- name: prepare-transfer
+  type: pending
+  handler: token-handler
+  inputMap:
+    jsonata: |
+      {
+        "stageDirector": {
+          "action": "prepare-transfer",
+          "nextStage": "submit-transfer",
+          "failureStage": "transfer-failed",
+          "outputPath": "/prepare"
+        },
+        "from": state.input.from,
+        "to": state.input.to,
+        "amount": state.input.amount
+      }
+- name: submit-transfer
+  type: pending
+  handler: token-handler
+  inputMap:
+    jsonata: |
+      {
+        "stageDirector": {
+          "action": "submit-transfer",
+          "nextStage": "transferred",
+          "failureStage": "transfer-failed",
+          "outputPath": "/result"
+        },
+        "txData": state.prepare
+      }
+- name: transferred
+  type: success
+- name: transfer-failed
+  type: failure
+
+handlerBindings:
+  token-handler:
+    provider: provider1
+    providerHandler: token-handler

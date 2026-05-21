@@ -6,10 +6,13 @@ package io.kaleido.wfe.sdk.stage;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import java.util.List;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record StageDirector(
         String action,
         String outputPath,
         String nextStage,
-        String failureStage
+        String failureStage,
+        List<ErrorMapEntry> errorMap
 ) {}

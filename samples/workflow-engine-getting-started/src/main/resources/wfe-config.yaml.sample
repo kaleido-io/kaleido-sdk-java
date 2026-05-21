@@ -1,8 +1,14 @@
+# providerName must match the handler registration name used by the WFE.
+# The test script (run-integration-tests.sh) overrides this via WFE_CONFIG_FILE.
 workflow-engine:
-  url: ws://localhost:5503/ws
   providerName: java-sample-provider
+  providerMetadata:
+    displayName: Java Sample Provider
+    description: A sample provider for the Kaleido Workflow Engine using the Java SDK
+  url: https://my-account.my-kaleido.io
   auth:
-    type: token
-    token: ""
-    header: Authorization
-    scheme: Bearer
+    type: basic
+    username: my-api-key-name
+    password: my-api-key
+  # retryDelay: 2s
+  # maxRetries: 5   # omit for infinite retries

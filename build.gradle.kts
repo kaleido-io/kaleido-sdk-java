@@ -13,17 +13,27 @@ allprojects {
     version = sdkVersion
 }
 
+val publishedModules = setOf("workflow-engine-sdk", "workflow-engine-sdk-spring-boot-starter")
+
+tasks.register<Exec>("componentTestClean") {
+    description = "Remove all Docker containers and volumes created by component tests"
+    group = "verification"
+    commandLine("sh", "-c",
+        "docker compose -f ${file("component-test-source.yml").absolutePath} down -v 2>/dev/null; " +
+        "docker compose -f ${file("component-test-docker.yml").absolutePath} down -v 2>/dev/null; true")
+}
+
 subprojects {
     apply(plugin = "java-library")
-    apply(plugin = "maven-publish")
-    apply(plugin = "jacoco")
 
     java {
         toolchain {
             languageVersion.set(JavaLanguageVersion.of(21))
         }
-        withSourcesJar()
-        withJavadocJar()
+        if (name in publishedModules) {
+            withSourcesJar()
+            withJavadocJar()
+        }
     }
 
     tasks.withType<JavaCompile> {
@@ -43,39 +53,44 @@ subprojects {
         useJUnitPlatform()
     }
 
-    tasks.named<JacocoReport>("jacocoTestReport") {
-        dependsOn(tasks.named("test"))
-        reports {
-            xml.required.set(true)
-            html.required.set(true)
-        }
-    }
+    if (name in publishedModules) {
+        apply(plugin = "maven-publish")
+        apply(plugin = "jacoco")
 
-    publishing {
-        repositories {
-            maven {
-                name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/kaleido-io/kaleido-sdk-java")
-                credentials {
-                    username = System.getenv("GITHUB_ACTOR") ?: findProperty("gpr.user") as String? ?: ""
-                    password = System.getenv("GITHUB_TOKEN") ?: findProperty("gpr.key") as String? ?: ""
-                }
+        tasks.named<JacocoReport>("jacocoTestReport") {
+            dependsOn(tasks.named("test"))
+            reports {
+                xml.required.set(true)
+                html.required.set(true)
             }
         }
-        publications {
-            register<MavenPublication>("mavenJava") {
-                from(components["java"])
-                pom {
-                    url.set("https://github.com/kaleido-io/kaleido-sdk-java")
-                    licenses {
-                        license {
-                            name.set("Apache License, Version 2.0")
-                            url.set("https://www.apache.org/licenses/LICENSE-2.0")
-                        }
+
+        configure<PublishingExtension> {
+            repositories {
+                maven {
+                    name = "GitHubPackages"
+                    url = uri("https://maven.pkg.github.com/kaleido-io/kaleido-sdk-java")
+                    credentials {
+                        username = System.getenv("GITHUB_ACTOR") ?: findProperty("gpr.user") as String? ?: ""
+                        password = System.getenv("GITHUB_TOKEN") ?: findProperty("gpr.key") as String? ?: ""
                     }
-                    scm {
-                        connection.set("scm:git:git://github.com/kaleido-io/kaleido-sdk-java.git")
+                }
+            }
+            publications {
+                register<MavenPublication>("mavenJava") {
+                    from(components["java"])
+                    pom {
                         url.set("https://github.com/kaleido-io/kaleido-sdk-java")
+                        licenses {
+                            license {
+                                name.set("Apache License, Version 2.0")
+                                url.set("https://www.apache.org/licenses/LICENSE-2.0")
+                            }
+                        }
+                        scm {
+                            connection.set("scm:git:git://github.com/kaleido-io/kaleido-sdk-java.git")
+                            url.set("https://github.com/kaleido-io/kaleido-sdk-java")
+                        }
                     }
                 }
             }

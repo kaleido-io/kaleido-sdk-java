@@ -103,8 +103,9 @@ public class WorkflowEngineAutoConfiguration {
             });
 
             eventSources.orderedStream().forEach(h -> {
-                h.init(engineAPI);
-                handlers.add(h);
+                var adapted = adaptEventSource(h);
+                adapted.init(engineAPI);
+                handlers.add(adapted);
             });
 
             log.info("Registered {} WFE handlers", handlers.size());
@@ -121,13 +122,18 @@ public class WorkflowEngineAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(WFEWebSocketClient.class)
-    public SmartLifecycle kaleidoClientLifecycle(WFEWebSocketClient client) {
+    public SmartLifecycle kaleidoClientLifecycle(WFEWebSocketClient client, RuntimeConfig config) {
         return new SmartLifecycle() {
             private final AtomicBoolean running = new AtomicBoolean(false);
 
             @Override
             public void start() {
                 if (running.compareAndSet(false, true)) {
+                    if (config.url() == null) {
+                        log.debug("No WFE URL configured, skipping client start");
+                        running.set(false);
+                        return;
+                    }
                     log.info("Starting Kaleido WFE client");
                     client.connect();
                 }
@@ -230,6 +236,14 @@ public class WorkflowEngineAutoConfiguration {
         var annotation = handler.getClass().getAnnotation(KaleidoEventProcessor.class);
         if (annotation != null) {
             return new AnnotatedEventProcessorAdapter(annotation.value(), handler);
+        }
+        return handler;
+    }
+
+    private static EventSource adaptEventSource(EventSource handler) {
+        var annotation = handler.getClass().getAnnotation(KaleidoEventSource.class);
+        if (annotation != null) {
+            return new AnnotatedEventSourceAdapter(annotation.value(), handler);
         }
         return handler;
     }

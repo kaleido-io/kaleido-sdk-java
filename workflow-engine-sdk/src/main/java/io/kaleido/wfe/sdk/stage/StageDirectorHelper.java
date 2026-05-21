@@ -5,7 +5,7 @@
 package io.kaleido.wfe.sdk.stage;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.TextNode;
 import io.kaleido.wfe.sdk.protocol.PatchOp;
 import io.kaleido.wfe.sdk.protocol.WSHandleTransactionResult;
 
@@ -39,7 +39,15 @@ public final class StageDirectorHelper {
             case TRANSIENT_ERROR -> error = result.message();
             case HARD_FAILURE -> {
                 stage = director.failureStage() != null ? director.failureStage() : director.nextStage();
-                error = result.message();
+                if (result.message() != null) {
+                    stateUpdates.add(PatchOp.replace("/error", TextNode.valueOf(result.message())));
+                }
+                if (result.errorCode() != null) {
+                    stateUpdates.add(PatchOp.replace("/errorCode", TextNode.valueOf(result.errorCode())));
+                }
+                if (result.errorData() != null) {
+                    stateUpdates.add(PatchOp.replace("/errorData", result.errorData()));
+                }
             }
         }
 

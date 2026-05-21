@@ -16,5 +16,6 @@ rootProject.name = "kaleido-sdk-java"
 
 include("workflow-engine-sdk")
 include("workflow-engine-sdk-spring-boot-starter")
+include("workflow-engine-sdk-component-test")
 
 includeBuild("samples")

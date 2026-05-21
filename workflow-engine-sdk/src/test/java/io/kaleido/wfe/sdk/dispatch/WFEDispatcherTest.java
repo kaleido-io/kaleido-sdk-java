@@ -257,6 +257,7 @@ class WFEDispatcherTest {
 
     private static class TestEventSource implements EventSource {
         volatile String lastConfigChangedStreamId;
+        volatile WSEventSourceConfig lastConfigRequest;
 
         @Override
         public String name() { return "test-es"; }
@@ -277,8 +278,9 @@ class WFEDispatcherTest {
         }
 
         @Override
-        public void onConfigChanged(String streamId) {
-            this.lastConfigChangedStreamId = streamId;
+        public void onConfigChanged(WSEventSourceConfig request) {
+            this.lastConfigChangedStreamId = request.streamId();
+            this.lastConfigRequest = request;
         }
     }
 }

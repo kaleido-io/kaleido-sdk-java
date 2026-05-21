@@ -32,7 +32,7 @@ jobs:
         run: ./gradlew publishToMavenLocal
 
   samples:
-    name: Build & Test (Samples)
+    name: Build Samples
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -49,9 +49,45 @@ jobs:
       - name: Publish SDK to Maven Local
         run: ./gradlew publishToMavenLocal
 
-      - name: Build and test hello-world sample
+      - name: Build hello-world sample
         run: ./gradlew :samples:hello-world:build
 
-      - name: Build and test erc20 sample
-        run: ./gradlew :samples:erc20:nativeCompile
- 
+      - name: Build erc20 sample
+        run: ./gradlew :samples:erc20:build
+
+  component-test:
+    name: Component Tests (WFE + Postgres)
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Log in to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: "604386504253"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-2
+        continue-on-error: true
+
+      - name: Run component tests (Docker mode)
+        if: steps.ecr-login.outcome == 'success'
+        env:
+          WFE_TEST_MODE: docker
+        run: ./gradlew :workflow-engine-sdk-component-test:componentTest
+
+      - name: Skip notice
+        if: steps.ecr-login.outcome != 'success'
+        run: echo "::warning::ECR login failed -- skipping component tests (WFE image not accessible)"

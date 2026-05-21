@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: my-secret
+      POSTGRES_USER: postgres
+  wfe:
+    image: ${WFE_IMAGE:-604386504253.dkr.ecr.us-east-2.amazonaws.com/kaleido-workflow-engine:0.0.1-20260515-673}
+    depends_on: [db]
+    ports:
+      - 5000:5000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["--enable-reset-api"]
+    environment:
+      FIREFLY_PLATFORM_ENVIRONMENTID: "s:componenttest"
+      FIREFLY_PLATFORM_SERVICEID: "s:sdktest00000"
+      FIREFLY_DATABASE_POSTGRES_URL: "postgres://postgres:my-secret@db:5432/sdk_test?sslmode=disable"
+      FIREFLY_DATABASE_POSTGRES_MIGRATIONS_AUTO: "true"
+      FIREFLY_DATABASE_POSTGRES_MIGRATIONS_DIRECTORY: "/workflow-engine/db/migrations/postgres"
+      FIREFLY_API_PORT: "5000"
+      FIREFLY_ACCESSMANAGER_URL: "${MOCK_AUTH_URL:-http://host.docker.internal:7071}"
+      FIREFLY_MONITORING_PORT: "5001"
+      FIREFLY_LOG_LEVEL: "trace"
+      FIREFLY_ENGINE_ERRORRETRY_INITIALDELAY: "10ms"
+      FIREFLY_ENGINE_ERRORRETRY_MAXDELAY: "250ms"

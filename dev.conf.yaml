@@ -1,0 +1,27 @@
+platform:
+  environmentId: s:abcde12345
+  serviceId: s:fghij67890
+database:
+  postgres:
+    url: postgres://postgres:my-secret@localhost:5432/localtest.workflowengine?sslmode=disable
+    migrations:
+      directory: ./db/migrations/postgres # when running in cmd
+      auto: true
+api:
+  port: 5503
+accessmanager:
+  url: http://localhost:1081
+monitoring:
+  port: 5504
+log:
+  level: "debug"
+# Uncomment the following to connect to a local Key Manager
+# providerConnections:
+# - name: s-67890fghij
+#   endpoint:
+#     ws:
+#       url: ws://localhost:5500/services/s:67890fghij/handler/ws
+# - name: s-12345abcde
+#   endpoint:
+#     ws:
+#       url: ws://localhost:5500/services/s:12345abcde/handler/ws

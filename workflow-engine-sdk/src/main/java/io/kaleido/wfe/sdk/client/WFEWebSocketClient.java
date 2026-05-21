@@ -57,6 +57,10 @@ public class WFEWebSocketClient implements EngineAPI, Closeable {
     }
 
     public CompletableFuture<Void> connect() {
+        if (config.url() == null) {
+            return CompletableFuture.failedFuture(
+                    SDKErrors.error(SDKErrors.WS_CONNECT_FAILED, "No URL configured for WFE client"));
+        }
         var handlerList = handlerSet.init(this);
         for (var h : handlerList) {
             handlers.put(h.name(), h);
@@ -91,6 +95,12 @@ public class WFEWebSocketClient implements EngineAPI, Closeable {
                 .exceptionally(ex -> {
                     log.warn("WebSocket connection failed (attempt {}): {}", attempt, ex.getMessage());
                     if (shouldReconnect.get() && !stopped.get()) {
+                        int max = config.maxAttempts();
+                        if (max > 0 && attempt + 1 >= max) {
+                            log.error("Max connection attempts ({}) reached, giving up", max);
+                            stoppedFuture.complete(null);
+                            return null;
+                        }
                         long delay = computeBackoff(attempt);
                         log.info("Reconnecting in {}ms", delay);
                         scheduler.schedule(() -> connectWithRetry(attempt + 1), delay, TimeUnit.MILLISECONDS);

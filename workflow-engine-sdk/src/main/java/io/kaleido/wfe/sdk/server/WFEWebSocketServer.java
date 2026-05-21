@@ -8,10 +8,12 @@ import io.kaleido.wfe.sdk.config.RuntimeConfig;
 import io.kaleido.wfe.sdk.config.ServerConfig;
 import io.kaleido.wfe.sdk.dispatch.WFEDispatcher;
 import io.kaleido.wfe.sdk.errors.SDKErrors;
+import io.kaleido.wfe.sdk.errors.SDKException;
 import io.kaleido.wfe.sdk.handlers.*;
 import io.kaleido.wfe.sdk.protocol.*;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.*;
@@ -20,6 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -55,8 +59,9 @@ public class WFEWebSocketServer implements EngineAPI, Closeable {
     private final HandlerSet handlerSet;
     private final Map<String, Handler> handlers = new ConcurrentHashMap<>();
     private final AtomicBoolean running = new AtomicBoolean(false);
-    /** Currently active per-thread endpoint -- used by {@link #submitAsyncTransactions}. */
     private final ThreadLocal<WFEServerEndpoint> currentEndpoint = new ThreadLocal<>();
+    private final ScheduledExecutorService heartbeatScheduler = Executors.newSingleThreadScheduledExecutor(
+            r -> { var t = new Thread(r, "wfe-server-heartbeat"); t.setDaemon(true); return t; });
 
     private Server jettyServer;
 
@@ -64,6 +69,7 @@ public class WFEWebSocketServer implements EngineAPI, Closeable {
         this.runtimeConfig = runtimeConfig;
         this.serverConfig = serverConfig;
         this.handlerSet = handlerSet;
+        this.rateLimitTokens = serverConfig.burst() > 0 ? serverConfig.burst() : serverConfig.requestsPerSecond();
     }
 
     public void start() throws Exception {
@@ -73,7 +79,16 @@ public class WFEWebSocketServer implements EngineAPI, Closeable {
         }
 
         jettyServer = new Server();
-        var connector = new ServerConnector(jettyServer);
+        ServerConnector connector;
+
+        var tlsConfig = serverConfig.tls();
+        if (tlsConfig != null && tlsConfig.enabled()) {
+            var sslContextFactory = buildSslContextFactory(tlsConfig);
+            connector = new ServerConnector(jettyServer, sslContextFactory);
+        } else {
+            connector = new ServerConnector(jettyServer);
+        }
+
         connector.setHost(serverConfig.address());
         connector.setPort(serverConfig.port());
         jettyServer.addConnector(connector);
@@ -92,7 +107,8 @@ public class WFEWebSocketServer implements EngineAPI, Closeable {
         try {
             jettyServer.start();
             running.set(true);
-            log.info("WFE server listening on {}:{}{}", serverConfig.address(),
+            String scheme = (tlsConfig != null && tlsConfig.enabled()) ? "wss" : "ws";
+            log.info("WFE server listening on {}://{}:{}{}", scheme, serverConfig.address(),
                     serverConfig.port(), WS_PATH);
         } catch (Exception e) {
             throw SDKErrors.error(SDKErrors.SERVER_BIND_FAILED,
@@ -100,8 +116,92 @@ public class WFEWebSocketServer implements EngineAPI, Closeable {
         }
     }
 
+    private SslContextFactory.Server buildSslContextFactory(ServerConfig.TlsConfig tlsConfig) {
+        if (tlsConfig.certFile() == null || tlsConfig.keyFile() == null) {
+            throw SDKErrors.error(SDKErrors.SERVER_TLS_CONFIG_INVALID,
+                    "TLS enabled but certFile or keyFile not specified");
+        }
+
+        try {
+            var sslContextFactory = new SslContextFactory.Server();
+
+            var keyStore = loadPemKeyStore(tlsConfig.certFile(), tlsConfig.keyFile());
+            sslContextFactory.setKeyStore(keyStore);
+            sslContextFactory.setKeyStorePassword("");
+
+            if (tlsConfig.caFile() != null) {
+                var trustStore = loadPemTrustStore(tlsConfig.caFile());
+                sslContextFactory.setTrustStore(trustStore);
+            }
+
+            if (tlsConfig.clientAuth()) {
+                sslContextFactory.setNeedClientAuth(true);
+            }
+
+            return sslContextFactory;
+        } catch (SDKException e) {
+            throw e;
+        } catch (Exception e) {
+            throw SDKErrors.error(SDKErrors.SERVER_TLS_CONFIG_INVALID,
+                    "Failed to configure TLS: " + e.getMessage(), e);
+        }
+    }
+
+    private static java.security.KeyStore loadPemKeyStore(String certFile, String keyFile) throws Exception {
+        var certFactory = java.security.cert.CertificateFactory.getInstance("X.509");
+
+        java.security.cert.Certificate[] chain;
+        try (var certStream = java.nio.file.Files.newInputStream(java.nio.file.Path.of(certFile))) {
+            chain = certFactory.generateCertificates(certStream).toArray(new java.security.cert.Certificate[0]);
+        }
+
+        java.security.PrivateKey privateKey;
+        var keyBytes = java.nio.file.Files.readString(java.nio.file.Path.of(keyFile));
+        var keyContent = keyBytes
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replace("-----END PRIVATE KEY-----", "")
+                .replace("-----BEGIN RSA PRIVATE KEY-----", "")
+                .replace("-----END RSA PRIVATE KEY-----", "")
+                .replace("-----BEGIN EC PRIVATE KEY-----", "")
+                .replace("-----END EC PRIVATE KEY-----", "")
+                .replaceAll("\\s", "");
+        var decoded = java.util.Base64.getDecoder().decode(keyContent);
+        var keySpec = new java.security.spec.PKCS8EncodedKeySpec(decoded);
+
+        try {
+            privateKey = java.security.KeyFactory.getInstance("RSA").generatePrivate(keySpec);
+        } catch (Exception e) {
+            try {
+                privateKey = java.security.KeyFactory.getInstance("EC").generatePrivate(keySpec);
+            } catch (Exception e2) {
+                privateKey = java.security.KeyFactory.getInstance("Ed25519").generatePrivate(keySpec);
+            }
+        }
+
+        var keyStore = java.security.KeyStore.getInstance("PKCS12");
+        keyStore.load(null, null);
+        keyStore.setKeyEntry("server", privateKey, "".toCharArray(), chain);
+        return keyStore;
+    }
+
+    private static java.security.KeyStore loadPemTrustStore(String caFile) throws Exception {
+        var certFactory = java.security.cert.CertificateFactory.getInstance("X.509");
+        var trustStore = java.security.KeyStore.getInstance("PKCS12");
+        trustStore.load(null, null);
+
+        try (var caStream = java.nio.file.Files.newInputStream(java.nio.file.Path.of(caFile))) {
+            var certs = certFactory.generateCertificates(caStream);
+            int i = 0;
+            for (var cert : certs) {
+                trustStore.setCertificateEntry("ca-" + i++, cert);
+            }
+        }
+        return trustStore;
+    }
+
     public void stop() {
         running.set(false);
+        heartbeatScheduler.shutdownNow();
         for (var h : handlers.values()) {
             try {
                 h.close();
@@ -163,13 +263,36 @@ public class WFEWebSocketServer implements EngineAPI, Closeable {
         }
     }
 
+    private long rateLimitLastRefill = System.nanoTime();
+    private double rateLimitTokens;
+
+    private boolean tryAcquire() {
+        if (serverConfig.requestsPerSecond() <= 0) return true;
+        long now = System.nanoTime();
+        synchronized (this) {
+            long elapsed = now - rateLimitLastRefill;
+            if (elapsed > 0) {
+                double newTokens = elapsed * ((double) serverConfig.requestsPerSecond() / 1_000_000_000L);
+                int maxBurst = serverConfig.burst() > 0 ? serverConfig.burst() : serverConfig.requestsPerSecond();
+                rateLimitTokens = Math.min(maxBurst, rateLimitTokens + newTokens);
+                rateLimitLastRefill = now;
+            }
+            if (rateLimitTokens >= 1.0) {
+                rateLimitTokens -= 1.0;
+                return true;
+            }
+            return false;
+        }
+    }
+
     @WebSocket
     public class WFEServerEndpoint {
-        private final StringBuilder buffer = new StringBuilder();
         private final ConcurrentHashMap<String, CompletableFuture<String>> inflightRequests = new ConcurrentHashMap<>();
         private final AtomicReference<String> activeRequestId = new AtomicReference<>();
         private final WFEDispatcher dispatcher = new WFEDispatcher(handlers, activeRequestId);
+        private final ExecutorService dispatchExecutor = Executors.newVirtualThreadPerTaskExecutor();
         private volatile Session session;
+        private volatile ScheduledFuture<?> heartbeatTask;
 
         @OnWebSocketOpen
         public void onOpen(Session session) {
@@ -180,11 +303,28 @@ public class WFEWebSocketServer implements EngineAPI, Closeable {
                     runtimeConfig.providerMetadata(),
                     handlers,
                     msg -> sendJson(session, msg));
+            startHeartbeat(session);
+        }
+
+        private void startHeartbeat(Session session) {
+            Duration interval = serverConfig.heartbeatInterval();
+            long intervalMs = interval.toMillis();
+            session.setIdleTimeout(Duration.ofMillis(intervalMs * 3));
+            heartbeatTask = heartbeatScheduler.scheduleAtFixedRate(() -> {
+                if (!session.isOpen()) return;
+                session.sendPing(ByteBuffer.allocate(0), Callback.from(
+                        () -> {},
+                        ex -> log.debug("Server ping send failed: {}", ex.getMessage())));
+            }, intervalMs, intervalMs, TimeUnit.MILLISECONDS);
         }
 
         @OnWebSocketMessage
         public void onMessage(Session session, String text) {
-            currentEndpoint.set(this);
+            if (!tryAcquire()) {
+                log.warn("Rate limit exceeded, rejecting request");
+                sendJson(session, WSEnvelope.error("Rate limit exceeded"));
+                return;
+            }
             try {
                 var envelope = JSON.MAPPER.readValue(text, WSEnvelope.class);
                 if (envelope.messageType() == WSMessageType.ENGINE_API_SUBMIT_TRANSACTIONS_RESULT) {
@@ -192,19 +332,35 @@ public class WFEWebSocketServer implements EngineAPI, Closeable {
                     if (future != null) {
                         future.complete(text);
                     }
+                } else if (envelope.messageType() == WSMessageType.EVENT_SOURCE_CONFIG
+                        || envelope.messageType() == WSMessageType.PROTOCOL_ERROR) {
+                    currentEndpoint.set(this);
+                    try {
+                        dispatcher.dispatch(envelope, text, msg -> sendJson(session, msg));
+                    } finally {
+                        currentEndpoint.remove();
+                    }
                 } else {
-                    dispatcher.dispatch(envelope, text, msg -> sendJson(session, msg));
+                    dispatchExecutor.submit(() -> {
+                        currentEndpoint.set(this);
+                        try {
+                            dispatcher.dispatch(envelope, text, msg -> sendJson(session, msg));
+                        } finally {
+                            currentEndpoint.remove();
+                        }
+                    });
                 }
             } catch (Exception e) {
                 log.error("Error processing message", e);
-            } finally {
-                currentEndpoint.remove();
             }
         }
 
         @OnWebSocketClose
         public void onClose(Session session, int statusCode, String reason) {
             log.info("Engine disconnected: {} {}", statusCode, reason);
+            if (heartbeatTask != null) {
+                heartbeatTask.cancel(false);
+            }
             inflightRequests.values().forEach(f -> f.completeExceptionally(
                     SDKErrors.error(SDKErrors.WS_SEND_FAILED, "WebSocket closed")));
             inflightRequests.clear();
