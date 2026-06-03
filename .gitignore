@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+out/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Native image build output
+**/native/nativeCompile/
+
+# Maven local publish artifacts (testing)
+local-repo/

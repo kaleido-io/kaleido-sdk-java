@@ -1,0 +1,93 @@
+name: Kaleido Workflow Engine Java SDK Release
+
+permissions:
+  contents: write
+  packages: write
+  pages: write
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Commit ref for checkout'
+        required: false
+        type: string
+        default: ''
+      sdk_version:
+        description: 'The version to publish (e.g. v1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark the GitHub Release as a prerelease'
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit ref for checkout'
+        required: false
+        type: string
+        default: ''
+      sdk_version:
+        description: 'The version to publish (e.g. v1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark the GitHub Release as a prerelease'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref != '' && inputs.ref || github.ref }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Prepare clean version number
+        id: version
+        shell: bash
+        run: |
+          echo "clean_version=$(echo "${{ inputs.sdk_version }}" | sed 's/^v//')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        run: ./gradlew build -PsdkVersion=${{ steps.version.outputs.clean_version }}
+
+      - name: Publish Maven artifacts to GitHub Packages
+        run: ./gradlew publish -PsdkVersion=${{ steps.version.outputs.clean_version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+
+      - name: Generate Javadoc
+        run: ./gradlew javadoc -PsdkVersion=${{ steps.version.outputs.clean_version }}
+
+      - name: Publish Javadoc to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./workflow-engine-sdk/build/docs/javadoc
+          destination_dir: docs/${{ steps.version.outputs.clean_version }}
+          keep_files: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.version.outputs.clean_version }}
+          generate_release_notes: true
+          prerelease: ${{ inputs.prerelease }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
