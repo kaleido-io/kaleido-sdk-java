@@ -4,6 +4,7 @@ plugins {
 
 val generateVersionProperties by tasks.registering {
     val outputDir = layout.buildDirectory.dir("generated/resources/version")
+    inputs.property("sdkVersion", project.version.toString())
     outputs.dir(outputDir)
     doLast {
         val dir = outputDir.get().asFile.resolve("META-INF/kaleido-wfe-sdk")
