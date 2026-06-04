@@ -3,7 +3,6 @@ name: Kaleido Workflow Engine Java SDK Release
 permissions:
   contents: write
   packages: write
-  pages: write
 
 on:
   workflow_call:
