@@ -1,0 +1,13 @@
+# providerName must match the handler registration name used by the WFE.
+workflow-engine:
+  providerName: java-sample-provider
+  providerMetadata:
+    displayName: Java Sample Provider
+    description: A sample provider for the Kaleido Workflow Engine using the Java SDK
+  url: https://my-account.my-kaleido.io/endpoint/my-environment/my-workflow-engine/rest
+  auth:
+    type: basic
+    username: my-api-key-name
+    password: my-api-key
+  # retryDelay: 2s
+  # maxRetries: 5   # omit for infinite retries

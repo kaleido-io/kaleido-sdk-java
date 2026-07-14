@@ -2,6 +2,7 @@
 jackson = "2.18.3"
 slf4j = "2.0.17"
 junit-jupiter = "5.11.4"
+zjsonpatch = "0.4.16"
 
 [libraries]
 jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
@@ -10,6 +11,7 @@ jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-d
 jackson-module-parameter-names = { module = "com.fasterxml.jackson.module:jackson-module-parameter-names" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+zjsonpatch = { module = "com.flipkart.zjsonpatch:zjsonpatch", version.ref = "zjsonpatch" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit-jupiter" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
