@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
  * settings; {@code service-bindings} may appear at the top level or nested
  * under {@code workflow-engine}.
  *
- * <p>Provider-specific custom config is resolved separately: the file named by
+ * <p>Provider-specific custom config is attached during load: the file named by
  * the {@code CONFIG_FILE} env var (default {@code ./config/provider-config.yaml}),
  * falling back to the {@code config:} key of the Kaleido config file.
  */
@@ -141,6 +141,7 @@ public final class ConfigLoader {
         builder.auth(parseAuth(authNode));
 
         builder.serviceBindings(parseServiceBindings(root, section));
+        builder.customConfig(resolveCustomConfig(root));
 
         return builder.build();
     }
@@ -167,12 +168,11 @@ public final class ConfigLoader {
     }
 
     /**
-     * Load the provider-specific custom config: the file named by the
-     * {@code CONFIG_FILE} env var (default {@code ./config/provider-config.yaml}),
-     * falling back to the {@code config:} key of the Kaleido config file at
-     * {@code kaleidoConfigPath} (may be null).
+     * Resolve provider-specific custom config from {@code CONFIG_FILE} (or the
+     * default path), then the {@code config:} key on an already-parsed Kaleido
+     * config root.
      */
-    public static JsonNode loadCustomConfig(Path kaleidoConfigPath) {
+    private static JsonNode resolveCustomConfig(JsonNode kaleidoRoot) {
         var providerConfigPath = System.getenv(CONFIG_FILE);
         if (providerConfigPath == null || providerConfigPath.isBlank()) {
             providerConfigPath = DEFAULT_PROVIDER_CONFIG_PATH;
@@ -183,17 +183,10 @@ public final class ConfigLoader {
                 return parsed;
             }
         } catch (IOException e) {
-            // file absent or unreadable — fall back to 'config:' key in the Kaleido config file
+            // file absent or unreadable — fall back to 'config:' key in the Kaleido config
         }
-        if (kaleidoConfigPath != null) {
-            try {
-                var parsed = YAML_MAPPER.readTree(Files.readString(kaleidoConfigPath));
-                if (parsed != null && parsed.has("config")) {
-                    return parsed.get("config");
-                }
-            } catch (IOException e) {
-                // no custom config section is fine
-            }
+        if (kaleidoRoot != null && kaleidoRoot.has("config")) {
+            return kaleidoRoot.get("config");
         }
         return null;
     }

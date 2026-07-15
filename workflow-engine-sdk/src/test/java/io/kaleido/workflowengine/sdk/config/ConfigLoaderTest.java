@@ -234,7 +234,7 @@ class ConfigLoaderTest {
                   mySetting: enabled
                 """);
 
-        var custom = ConfigLoader.loadCustomConfig(file);
+        var custom = ConfigLoader.load(file).customConfig();
         assertNotNull(custom);
         assertEquals("enabled", custom.get("mySetting").asText());
     }

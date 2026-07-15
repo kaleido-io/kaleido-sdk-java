@@ -94,29 +94,7 @@ public class WorkflowEngineClient {
         if (configPath == null) {
             throw SDKErrors.newError(SDKErrors.MSG_CONFIG_FILE_NOT_SET, ConfigLoader.KALEIDO_CONFIG_FILE);
         }
-        var kaleidoConfigPath = Path.of(configPath);
-        var clientConfig = ConfigLoader.load(kaleidoConfigPath);
-        var customConfig = ConfigLoader.loadCustomConfig(kaleidoConfigPath);
-        if (customConfig != null) {
-            clientConfig = ClientConfig.builder()
-                    .url(clientConfig.url())
-                    .providerName(clientConfig.providerName())
-                    .providerMetadata(clientConfig.providerMetadata())
-                    .auth(clientConfig.auth())
-                    .extraHeaders(clientConfig.extraHeaders())
-                    .reconnectDelay(clientConfig.reconnectDelay())
-                    .maxReconnectDelay(clientConfig.maxReconnectDelay())
-                    .reconnectDelayFactor(clientConfig.reconnectDelayFactor())
-                    .maxAttempts(clientConfig.maxAttempts())
-                    .heartbeatInterval(clientConfig.heartbeatInterval())
-                    .pongTimeout(clientConfig.pongTimeout())
-                    .resultTimeout(clientConfig.resultTimeout())
-                    .setupLifecycle(clientConfig.setupLifecycle())
-                    .serviceBindings(clientConfig.serviceBindings())
-                    .customConfig(customConfig)
-                    .build();
-        }
-        return new WorkflowEngineClient(clientConfig);
+        return new WorkflowEngineClient(ConfigLoader.load(Path.of(configPath)));
     }
 
     // ── Builder API ─────────────────────────────────────────────────────────
