@@ -51,12 +51,10 @@ dependencies {
     "componentTestRuntimeOnly"(libs.slf4j.simple)
 }
 
-// Component tests need a live workflow engine (the connector-toolkit compose
-// stack) and are not part of `check` — run them explicitly with
-// `./gradlew componentTest`, mirroring the TS package's separate
-// `test:component` script.
+// Not part of `check` — needs a reachable workflow engine (see src/componentTest/README.md).
 val componentTest by tasks.registering(Test::class) {
-    description = "Runs component tests against a live workflow engine."
+    description =
+        "Runs component tests against a reachable workflow engine (see src/componentTest/README.md)."
     group = "verification"
     testClassesDirs = sourceSets["componentTest"].output.classesDirs
     classpath = sourceSets["componentTest"].runtimeClasspath

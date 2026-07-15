@@ -12,13 +12,11 @@ so both SDKs are held to the same end-to-end behavior:
 
 ## Prerequisites
 
-The workflow engine must be running before the tests execute — they do not start it.
-The simplest way is the connector-toolkit compose stack in `firefly-enterprise`:
+Point these tests at a workflow engine that is already running and reachable over
+HTTP. They do not start or manage that process for you.
 
-```bash
-cd firefly-enterprise/common/connector-toolkit
-docker compose -f dev.compose.yaml up -d --build
-```
+Local development defaults assume `http://localhost:5503` with token auth
+(`dev-token-123` in the `X-Kld-Authz` header). Override as needed (see below).
 
 ## Running
 
@@ -31,8 +29,7 @@ without a running engine.
 
 ## Configuration
 
-Defaults target the compose stack (`http://localhost:5503`, token `dev-token-123`
-in the `X-Kld-Authz` header). To override, either:
+To override the defaults, either:
 
 - set env vars: `FLOW_ENGINE_URL`, `WORKFLOW_ENGINE_AUTH_TOKEN`,
   `WORKFLOW_ENGINE_AUTH_HEADER`, `WORKFLOW_ENGINE_AUTH_SCHEME`; or

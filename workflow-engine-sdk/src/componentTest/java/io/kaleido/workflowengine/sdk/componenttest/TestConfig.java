@@ -19,8 +19,8 @@ import java.util.Map;
 /**
  * Component test configuration. Loads {@code test-config.yaml} from the test
  * classpath when present (same shape as the TS suite's config file), otherwise
- * falls back to the local connector-toolkit compose stack defaults. Env vars
- * override either source: {@code FLOW_ENGINE_URL},
+ * falls back to local development defaults ({@code http://localhost:5503}).
+ * Env vars override either source: {@code FLOW_ENGINE_URL},
  * {@code WORKFLOW_ENGINE_AUTH_TOKEN}, {@code WORKFLOW_ENGINE_AUTH_HEADER},
  * {@code WORKFLOW_ENGINE_AUTH_SCHEME}.
  */

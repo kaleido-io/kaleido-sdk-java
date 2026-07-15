@@ -4,19 +4,15 @@
 
 package io.kaleido.workflowengine.sdk.componenttest;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 
-/**
- * HTTP helper that retries on 429 responses, so the tests run robustly against
- * extra-small workflow engine runtimes.
- */
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 final class FetchUtils {
     private FetchUtils() {}
 
@@ -26,6 +22,9 @@ final class FetchUtils {
             .connectTimeout(Duration.ofSeconds(30))
             .build();
 
+    /**
+     * HTTP helper that retries on 429 responses.
+     */
     static HttpResponse<String> fetchWithRetry(String method, String url, String contentType, String body)
             throws Exception {
         var attempts = 0;
