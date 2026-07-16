@@ -224,6 +224,56 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void inboundServerConfigParsed(@TempDir Path tempDir) throws Exception {
+        var file = write(tempDir, """
+                workflow-engine:
+                  providerName: inbound-provider
+                  server:
+                    address: 0.0.0.0
+                    port: 6001
+                    heartbeatInterval: 45s
+                """);
+
+        var config = ConfigLoader.load(file);
+        assertNull(config.url());
+        assertNull(config.auth());
+        assertNotNull(config.server());
+        assertEquals("0.0.0.0", config.server().address());
+        assertEquals(6001, config.server().port());
+        assertEquals(Duration.ofSeconds(45), config.heartbeatInterval());
+    }
+
+    @Test
+    void inboundServerConfigDefaultsPortAndTls() throws Exception {
+        var server = new ServerConfig(null, null, null);
+        assertEquals(ServerConfig.DEFAULT_PORT, server.resolvedPort());
+
+        var withPort = new ServerConfig("127.0.0.1", 7000, null);
+        assertEquals(7000, withPort.resolvedPort());
+    }
+
+    @Test
+    void inboundServerTlsConfigParsed(@TempDir Path tempDir) throws Exception {
+        var file = write(tempDir, """
+                workflow-engine:
+                  providerName: inbound-tls-provider
+                  server:
+                    address: 0.0.0.0
+                    port: 6443
+                    tls:
+                      enabled: true
+                      certFile: /etc/tls/cert.pem
+                      keyFile: /etc/tls/key.pem
+                """);
+
+        var config = ConfigLoader.load(file);
+        assertNotNull(config.server().tls());
+        assertTrue(config.server().tls().enabled());
+        assertEquals("/etc/tls/cert.pem", config.server().tls().certFile());
+        assertEquals("/etc/tls/key.pem", config.server().tls().keyFile());
+    }
+
+    @Test
     void customConfigFallsBackToConfigKey(@TempDir Path tempDir) throws Exception {
         var file = write(tempDir, """
                 workflow-engine:

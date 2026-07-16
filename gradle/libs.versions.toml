@@ -3,8 +3,10 @@ jackson = "2.18.3"
 slf4j = "2.0.17"
 junit-jupiter = "5.11.4"
 zjsonpatch = "0.4.16"
+java-websocket = "1.5.7"
 
 [libraries]
+java-websocket = { module = "org.java-websocket:Java-WebSocket", version.ref = "java-websocket" }
 jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
 jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml" }

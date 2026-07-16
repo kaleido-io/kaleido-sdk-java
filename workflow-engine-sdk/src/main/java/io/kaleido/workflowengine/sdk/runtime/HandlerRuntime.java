@@ -6,6 +6,7 @@ package io.kaleido.workflowengine.sdk.runtime;
 
 import io.kaleido.workflowengine.sdk.config.AuthConfig;
 import io.kaleido.workflowengine.sdk.config.ClientConfig;
+import io.kaleido.workflowengine.sdk.config.ServerConfig;
 import io.kaleido.workflowengine.sdk.handlers.CancellationSignal;
 import io.kaleido.workflowengine.sdk.handlers.EventProcessor;
 import io.kaleido.workflowengine.sdk.handlers.EventSource;
@@ -36,10 +37,12 @@ import io.kaleido.workflowengine.sdk.protocol.WSSetupTriggerResponse;
 import io.kaleido.workflowengine.sdk.service.ProxyAdapterRuntime;
 import io.kaleido.workflowengine.sdk.service.ServiceProxyResponse;
 import io.kaleido.workflowengine.sdk.service.WSProxyAdapter;
+import org.java_websocket.handshake.ClientHandshake;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
@@ -53,6 +56,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -61,6 +65,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Internal runtime that manages the WebSocket connection to the workflow
@@ -84,6 +89,10 @@ public class HandlerRuntime implements ProxyAdapterRuntime, Closeable {
     private final CompletableFuture<Void> stoppedFuture = new CompletableFuture<>();
 
     private volatile WebSocket webSocket;
+    /** Inbound mode: the accepted connection from the engine/provider-proxy dialing in. */
+    private volatile org.java_websocket.WebSocket inboundConnection;
+    /** Inbound mode: the listening server; null in outbound mode. */
+    private volatile org.java_websocket.server.WebSocketServer wsServer;
     private final ExecutorService dispatchExecutor = Executors.newVirtualThreadPerTaskExecutor();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         var thread = new Thread(r, "workflow-engine-scheduler");
@@ -178,19 +187,30 @@ public class HandlerRuntime implements ProxyAdapterRuntime, Closeable {
     // ── Lifecycle ───────────────────────────────────────────────────────────
 
     /**
-     * Initialize all handlers and connect to the workflow engine, blocking
-     * until the first successful connection (retrying with exponential
-     * backoff, bounded by {@code maxAttempts} when set).
+     * Initialize all handlers and start the runtime. In outbound mode
+     * (a {@code url} is configured), connects to the workflow engine and
+     * blocks until the first successful connection (retrying with exponential
+     * backoff, bounded by {@code maxAttempts} when set). In inbound mode
+     * (a {@code server} is configured), starts a local WebSocket server and
+     * blocks until it is listening; the engine dials in.
      */
     public void start() throws Exception {
-        log.info("Starting handler runtime and registering with workflow engine at {} provider={}",
-                config.url(), config.providerName());
-
         for (var handler : getAllHandlers()) {
             handler.init(engineClient);
             log.debug("Initialized handler {}", handler.name());
         }
 
+        if (config.server() != null) {
+            // Inbound: the engine/provider-proxy dials in, rather than this
+            // process dialing out (see ServerConfig).
+            log.info("Starting handler runtime in inbound mode provider={}", config.providerName());
+            shouldReconnect.set(false);
+            startInboundServer();
+            return;
+        }
+
+        log.info("Starting handler runtime and registering with workflow engine at {} provider={}",
+                config.url(), config.providerName());
         try {
             connectWithRetry(0).get();
         } catch (ExecutionException e) {
@@ -207,6 +227,14 @@ public class HandlerRuntime implements ProxyAdapterRuntime, Closeable {
         shouldReconnect.set(false);
         if (heartbeatTask != null) {
             heartbeatTask.cancel(false);
+        }
+        var server = this.wsServer;
+        if (server != null) {
+            try {
+                server.stop();
+            } catch (Exception e) {
+                log.debug("Error closing inbound WebSocket server: {}", e.getMessage());
+            }
         }
         var ws = this.webSocket;
         if (ws != null) {
@@ -251,6 +279,19 @@ public class HandlerRuntime implements ProxyAdapterRuntime, Closeable {
      */
     @Override
     public void sendMessage(Object message) {
+        if (config.server() != null) {
+            var conn = this.inboundConnection;
+            if (conn == null || !connected.get()) {
+                log.warn("Attempted to send message while disconnected");
+                return;
+            }
+            try {
+                conn.send(JSON.MAPPER.writeValueAsString(message));
+            } catch (Exception e) {
+                log.error("Failed to send WS message", e);
+            }
+            return;
+        }
         var ws = this.webSocket;
         if (ws == null || !connected.get()) {
             log.warn("Attempted to send message while disconnected");
@@ -328,6 +369,92 @@ public class HandlerRuntime implements ProxyAdapterRuntime, Closeable {
             if (name != null && value != null) {
                 wsBuilder.header(name, value);
             }
+        }
+    }
+
+    // ── Inbound mode (engine dials in) ─────────────────────────────────────
+
+    /**
+     * Start a WebSocket server on {@code config.server()}'s address/port and
+     * wait for the engine/provider-proxy to dial in. Blocks until the server
+     * is actually listening, and throws if the bind fails. Unlike outbound
+     * mode, a dropped connection is not "reconnected" from here — the server
+     * keeps listening and the next {@code onOpen} picks up where
+     * {@code onClose} left off.
+     *
+     * <p>Dead-connection detection uses the underlying library's
+     * {@code connectionLostTimeout} ping/pong keepalive rather than this
+     * class's manual heartbeat (which is written in terms of the outbound
+     * {@code java.net.http.WebSocket} type) — same end result, different
+     * mechanism.
+     */
+    private void startInboundServer() throws Exception {
+        var serverConfig = config.server();
+        var address = serverConfig.address() != null ? serverConfig.address() : "0.0.0.0";
+        var port = serverConfig.resolvedPort();
+
+        var startupLatch = new CountDownLatch(1);
+        var startupError = new AtomicReference<Exception>();
+
+        wsServer = new org.java_websocket.server.WebSocketServer(new InetSocketAddress(address, port)) {
+            @Override
+            public void onOpen(org.java_websocket.WebSocket conn, ClientHandshake handshake) {
+                log.info("Inbound WebSocket connection from {}", conn.getRemoteSocketAddress());
+                inboundConnection = conn;
+                connected.set(true);
+                registerProviderAndHandlers();
+            }
+
+            @Override
+            public void onClose(org.java_websocket.WebSocket conn, int code, String reason, boolean remote) {
+                log.info("Inbound WebSocket closed: {} {}", code, reason);
+                if (inboundConnection == conn) {
+                    inboundConnection = null;
+                    connected.set(false);
+                    engineClient.cancelAll();
+                    wsProxyAdapter.cancelAll();
+                }
+            }
+
+            @Override
+            public void onMessage(org.java_websocket.WebSocket conn, String message) {
+                handleMessage(message);
+            }
+
+            @Override
+            public void onError(org.java_websocket.WebSocket conn, Exception ex) {
+                log.error("Inbound WebSocket error: {}", ex.getMessage());
+                if (conn == null) {
+                    // Server-level error (e.g. bind failure) — surface it to
+                    // start() if we're still waiting on the bind.
+                    startupError.set(ex);
+                    startupLatch.countDown();
+                }
+            }
+
+            @Override
+            public void onStart() {
+                log.info("Inbound WebSocket server listening on {}:{}", address, port);
+                startupLatch.countDown();
+            }
+        };
+
+        var heartbeatSeconds = (int) (config.heartbeatInterval() != null
+                ? config.heartbeatInterval().toSeconds() : Duration.ofSeconds(30).toSeconds());
+        wsServer.setConnectionLostTimeout(Math.max(heartbeatSeconds, 1));
+        wsServer.setReuseAddr(true);
+
+        if (serverConfig.tls() != null && serverConfig.tls().enabled()) {
+            wsServer.setWebSocketFactory(InboundTls.serverFactory(serverConfig.tls()));
+        }
+
+        wsServer.start();
+        if (!startupLatch.await(10, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("timed out waiting for inbound WebSocket server to start on "
+                    + address + ":" + port);
+        }
+        if (startupError.get() != null) {
+            throw startupError.get();
         }
     }
 

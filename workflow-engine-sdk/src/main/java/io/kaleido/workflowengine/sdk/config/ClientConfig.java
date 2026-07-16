@@ -17,6 +17,7 @@ import java.util.Map;
  */
 public record ClientConfig(
         URI url,
+        ServerConfig server,
         String providerName,
         JsonNode providerMetadata,
         AuthConfig auth,
@@ -38,6 +39,7 @@ public record ClientConfig(
 
     public static class Builder {
         private URI url;
+        private ServerConfig server;
         private String providerName;
         private JsonNode providerMetadata;
         private AuthConfig auth;
@@ -54,6 +56,7 @@ public record ClientConfig(
         private JsonNode customConfig;
 
         public Builder url(URI url) { this.url = url; return this; }
+        public Builder server(ServerConfig server) { this.server = server; return this; }
         public Builder providerName(String providerName) { this.providerName = providerName; return this; }
         public Builder providerMetadata(JsonNode providerMetadata) { this.providerMetadata = providerMetadata; return this; }
         public Builder auth(AuthConfig auth) { this.auth = auth; return this; }
@@ -70,7 +73,7 @@ public record ClientConfig(
         public Builder customConfig(JsonNode customConfig) { this.customConfig = customConfig; return this; }
 
         public ClientConfig build() {
-            return new ClientConfig(url, providerName, providerMetadata, auth, extraHeaders,
+            return new ClientConfig(url, server, providerName, providerMetadata, auth, extraHeaders,
                     reconnectDelay, maxReconnectDelay, reconnectDelayFactor, maxAttempts,
                     heartbeatInterval, pongTimeout, resultTimeout,
                     setupLifecycle, serviceBindings, customConfig);

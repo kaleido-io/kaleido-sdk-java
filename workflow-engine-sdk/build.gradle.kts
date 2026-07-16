@@ -39,6 +39,7 @@ dependencies {
     implementation(libs.jackson.dataformat.yaml)
     implementation(libs.jackson.module.parameter.names)
     implementation(libs.zjsonpatch)
+    implementation(libs.java.websocket)
     api(libs.slf4j.api)
 
     testImplementation(platform(libs.junit.bom))

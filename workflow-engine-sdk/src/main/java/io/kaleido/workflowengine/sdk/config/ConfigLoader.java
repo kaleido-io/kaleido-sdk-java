@@ -133,17 +133,47 @@ public final class ConfigLoader {
         }
 
         var url = section.path("url").asText("");
-        var authNode = section.path("auth");
-        if (url.isEmpty() || !authNode.isObject()) {
-            throw SDKErrors.newError(SDKErrors.MSG_CONFIG_URL_AUTH_MISSING, source);
+        var serverNode = section.path("server");
+
+        // Inbound: a "server" section with no "url" means the app creates a
+        // WebSocket server and the engine dials in, rather than the app
+        // dialing out (see ServerConfig).
+        if (url.isEmpty() && serverNode.isObject()) {
+            builder.server(parseServerConfig(serverNode));
+            if (serverNode.has("heartbeatInterval")) {
+                var hbNode = serverNode.get("heartbeatInterval");
+                var hbValue = hbNode.isNumber() ? String.valueOf(hbNode.asInt()) : hbNode.asText();
+                builder.heartbeatInterval(parseTimeString(hbValue));
+            }
+        } else {
+            var authNode = section.path("auth");
+            if (url.isEmpty() || !authNode.isObject()) {
+                throw SDKErrors.newError(SDKErrors.MSG_CONFIG_URL_AUTH_MISSING, source);
+            }
+            builder.url(java.net.URI.create(httpUrlToWsUrl(url)));
+            builder.auth(parseAuth(authNode));
         }
-        builder.url(java.net.URI.create(httpUrlToWsUrl(url)));
-        builder.auth(parseAuth(authNode));
 
         builder.serviceBindings(parseServiceBindings(root, section));
         builder.customConfig(resolveCustomConfig(root));
 
         return builder.build();
+    }
+
+    private static ServerConfig parseServerConfig(JsonNode serverNode) {
+        var address = serverNode.path("address").asText(null);
+        var port = serverNode.has("port") ? serverNode.get("port").asInt() : null;
+        ServerConfig.TlsConfig tls = null;
+        var tlsNode = serverNode.path("tls");
+        if (tlsNode.isObject() && tlsNode.path("enabled").asBoolean(false)) {
+            tls = new ServerConfig.TlsConfig(
+                    true,
+                    tlsNode.has("caFile") ? tlsNode.get("caFile").asText() : null,
+                    tlsNode.has("certFile") ? tlsNode.get("certFile").asText() : null,
+                    tlsNode.has("keyFile") ? tlsNode.get("keyFile").asText() : null,
+                    tlsNode.path("clientAuth").asBoolean(false));
+        }
+        return new ServerConfig(address, port, tls);
     }
 
     private static Map<String, ServiceBindingConfig> parseServiceBindings(JsonNode root, JsonNode section) {
