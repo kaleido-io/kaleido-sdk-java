@@ -1,43 +1,330 @@
 [
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSMessageType"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSHandlerType"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.PatchOpType"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEnvelope"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSRegisterProvider"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSRegisterHandler"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.ProviderCapabilities"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSHandleTransactions"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEvaluateTransaction"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEvaluateTransactionEvent"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSHandleTransactionsResult"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEvaluateReplyResult"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.PatchOp"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.Trigger"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.HandlerEvent"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.ListenerEvent"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEventProcessorBatchRequest"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEventProcessorBatchResult"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEventSourceConfig"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEventStreamInfo"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSListenerPollRequest"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSListenerPollResult"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEventSourceValidateConfigRequest"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEventSourceValidateConfigResult"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEventSourceDeleteRequest"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEventSourceDeleteResult"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSSetupTriggerRequest"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSSetupTriggerResponse"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.AsyncTransactionInput"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.IdempotentSubmitResult"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEngineAPISubmitTransactions"},
-  {"type": "io.kaleido.workflowengine.sdk.protocol.WSEngineAPISubmitTransactionsResult"},
-  {"type": "io.kaleido.workflowengine.sdk.service.ServiceProxyRequest"},
-  {"type": "io.kaleido.workflowengine.sdk.service.ServiceProxyRequest$HttpRequestSpec"},
-  {"type": "io.kaleido.workflowengine.sdk.service.ServiceProxyResponse"},
-  {"type": "io.kaleido.workflowengine.sdk.service.ServiceBindingAuth"},
-  {"type": "io.kaleido.workflowengine.sdk.stage.StageDirector"},
-  {"type": "io.kaleido.workflowengine.sdk.stage.EvalResult"},
-  {"type": "io.kaleido.workflowengine.sdk.config.AuthConfig$BasicAuth"},
-  {"type": "io.kaleido.workflowengine.sdk.config.AuthConfig$TokenAuth"},
-  {"type": "io.kaleido.workflowengine.sdk.config.AuthConfig$CustomHeaders"}
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSMessageType",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSHandlerType",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.PatchOpType",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEnvelope",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSRegisterProvider",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSRegisterHandler",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.ProviderCapabilities",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSHandleTransactions",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEvaluateTransaction",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEvaluateTransactionEvent",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSHandleTransactionsResult",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEvaluateReplyResult",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.PatchOp",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.Trigger",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.HandlerEvent",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.ListenerEvent",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEventProcessorBatchRequest",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEventProcessorBatchResult",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEventSourceConfig",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEventStreamInfo",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSListenerPollRequest",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSListenerPollResult",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEventSourceValidateConfigRequest",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEventSourceValidateConfigResult",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEventSourceDeleteRequest",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEventSourceDeleteResult",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSSetupTriggerRequest",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSSetupTriggerResponse",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.AsyncTransactionInput",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.IdempotentSubmitResult",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEngineAPISubmitTransactions",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.protocol.WSEngineAPISubmitTransactionsResult",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.service.ServiceProxyRequest",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.service.ServiceProxyRequest$HttpRequestSpec",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.service.ServiceProxyResponse",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.service.ServiceBindingAuth",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.stage.StageDirector",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.stage.EvalResult",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.config.AuthConfig$BasicAuth",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.config.AuthConfig$TokenAuth",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "io.kaleido.workflowengine.sdk.config.AuthConfig$CustomHeaders",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  }
 ]
