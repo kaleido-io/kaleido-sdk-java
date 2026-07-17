@@ -3,7 +3,7 @@ plugins {
     `maven-publish`
 }
 
-val sdkVersion = providers.gradleProperty("sdkVersion").getOrElse("26.5.0-rc.0")
+val sdkVersion = providers.gradleProperty("sdkVersion").getOrElse("26.5.0-rc.1")
 val sdkGroup = "io.kaleido"
 
 allprojects {

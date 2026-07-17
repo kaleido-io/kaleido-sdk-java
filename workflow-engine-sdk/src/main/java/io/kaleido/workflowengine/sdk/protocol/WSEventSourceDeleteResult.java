@@ -1,0 +1,39 @@
+// Copyright © 2026 Kaleido, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+package io.kaleido.workflowengine.sdk.protocol;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+/**
+ * Event source delete result. Mutable: the event source sets {@code error}
+ * in place on failure.
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class WSEventSourceDeleteResult {
+    private WSMessageType messageType = WSMessageType.EVENT_SOURCE_DELETE_RESULT;
+    private String id;
+    private String handler;
+    private String error;
+
+    public WSEventSourceDeleteResult() {}
+
+    public static WSEventSourceDeleteResult forRequest(WSEventSourceDeleteRequest request) {
+        var result = new WSEventSourceDeleteResult();
+        result.setId(request.id());
+        result.setHandler(request.handler());
+        return result;
+    }
+
+    public WSMessageType getMessageType() { return messageType; }
+    public void setMessageType(WSMessageType messageType) { this.messageType = messageType; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+    public String getHandler() { return handler; }
+    public void setHandler(String handler) { this.handler = handler; }
+    public String getError() { return error; }
+    public void setError(String error) { this.error = error; }
+}

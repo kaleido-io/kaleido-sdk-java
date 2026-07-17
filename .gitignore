@@ -26,3 +26,6 @@ out/
 
 # Maven local publish artifacts (testing)
 local-repo/
+
+# Component test local config override
+workflow-engine-sdk/src/componentTest/resources/test-config.yaml

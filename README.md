@@ -1,8 +1,33 @@
-# kaleido-sdk-java
+# Kaleido Java SDKs
 
-Java SDK for integrating with the [Kaleido Workflow Engine](https://kaleido.io).
+This repository contains Kaleido's Java SDK modules for interacting with Kaleido platform
+services. Using these SDKs you can write standalone applications that connect to the Kaleido
+platform, or hosted applications that run inside it. The
+[Kaleido TypeScript SDKs](https://github.com/kaleido-io/kaleido-sdk-typescript) are the
+sibling of this repository — both share the same wire protocol, configuration files, and
+programming model.
 
-## Usage
+## Modules
+
+- [`workflow-engine-sdk`](./workflow-engine-sdk/README.md) — build workflow engine
+  providers: transaction handlers, event sources, and event processors.
+
+## Quick start
+
+```java
+import io.kaleido.workflowengine.sdk.client.WorkflowEngineClient;
+
+var client = WorkflowEngineClient.fromConfigFile();
+client.transactionHandler("my-handler", myHandler)
+      .start();
+```
+
+See the [workflow engine SDK README](./workflow-engine-sdk/README.md) for the configuration
+model, handler types, and complete examples, and
+[`samples/workflow-engine-getting-started`](./samples/workflow-engine-getting-started) for a
+runnable provider.
+
+## Installation
 
 Artifacts are published to **GitHub Packages** (Maven). You need a GitHub PAT with the `read:packages` scope.
 
@@ -71,6 +96,7 @@ Requires JDK 21.
 
 ```bash
 ./gradlew build                # compile + run unit tests
+./gradlew componentTest        # conformance suite against a live workflow engine
 ./gradlew publishToMavenLocal  # install to ~/.m2 for local testing
 ./gradlew javadoc              # generate Javadoc HTML
 ```
