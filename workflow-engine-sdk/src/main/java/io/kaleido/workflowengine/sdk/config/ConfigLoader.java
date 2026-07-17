@@ -25,8 +25,7 @@ import java.util.regex.Pattern;
  * Loads {@link ClientConfig} from the Kaleido-managed YAML config file.
  *
  * <p>File path resolution order: an explicit path argument, then the
- * {@code KALEIDO_CONFIG_FILE} env var, then the legacy {@code WFE_CONFIG_FILE}
- * env var. Only the root key {@code workflow-engine} is read for connection
+ * {@code KALEIDO_CONFIG_FILE} env var. Only the root key {@code workflow-engine} is read for connection
  * settings; {@code service-bindings} may appear at the top level or nested
  * under {@code workflow-engine}.
  *
@@ -43,17 +42,13 @@ public final class ConfigLoader {
 
     /** Env var naming the Kaleido-managed config file (service bindings etc.). */
     public static final String KALEIDO_CONFIG_FILE = "KALEIDO_CONFIG_FILE";
-    /** @deprecated Use {@link #KALEIDO_CONFIG_FILE}. */
-    @Deprecated
-    public static final String WFE_CONFIG_FILE = "WFE_CONFIG_FILE";
     /** Env var naming the developer-managed provider-specific config file. */
     public static final String CONFIG_FILE = "CONFIG_FILE";
 
     static final String DEFAULT_PROVIDER_CONFIG_PATH = "./config/provider-config.yaml";
 
     /**
-     * Load client config from the file named by {@code KALEIDO_CONFIG_FILE}
-     * (or the legacy {@code WFE_CONFIG_FILE}).
+     * Load client config from the file named by {@code KALEIDO_CONFIG_FILE}.
      */
     public static ClientConfig fromEnv() {
         var configPath = resolveConfigPath(null);
@@ -223,16 +218,12 @@ public final class ConfigLoader {
 
     /**
      * Resolve the Kaleido config file path: explicit argument, then
-     * {@code KALEIDO_CONFIG_FILE}, then legacy {@code WFE_CONFIG_FILE}.
-     * Returns null when none is set.
+     * {@code KALEIDO_CONFIG_FILE}. Returns null when none is set.
      */
     public static String resolveConfigPath(String explicitPath) {
         var path = explicitPath;
         if (path == null || path.isBlank()) {
             path = System.getenv(KALEIDO_CONFIG_FILE);
-        }
-        if (path == null || path.isBlank()) {
-            path = System.getenv(WFE_CONFIG_FILE);
         }
         return path == null || path.isBlank() ? null : path.trim();
     }

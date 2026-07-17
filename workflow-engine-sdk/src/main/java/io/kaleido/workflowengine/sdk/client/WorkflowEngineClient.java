@@ -77,8 +77,8 @@ public class WorkflowEngineClient {
     }
 
     /**
-     * Load config from the YAML file named by {@code KALEIDO_CONFIG_FILE} (or
-     * the legacy {@code WFE_CONFIG_FILE}) and return a configured client.
+     * Load config from the YAML file named by {@code KALEIDO_CONFIG_FILE}
+     * and return a configured client.
      */
     public static WorkflowEngineClient fromConfigFile() {
         return fromConfigFile(null);
@@ -86,8 +86,8 @@ public class WorkflowEngineClient {
 
     /**
      * Load config from a YAML file and return a configured client. When
-     * {@code path} is null, the {@code KALEIDO_CONFIG_FILE} /
-     * {@code WFE_CONFIG_FILE} env vars name the file.
+     * {@code path} is null, the {@code KALEIDO_CONFIG_FILE} env var names
+     * the file.
      */
     public static WorkflowEngineClient fromConfigFile(Path path) {
         var configPath = ConfigLoader.resolveConfigPath(path != null ? path.toString() : null);

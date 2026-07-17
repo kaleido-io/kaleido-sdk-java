@@ -55,8 +55,7 @@ Most provider flows use two config files:
 
 ### Environment variables
 
-- `KALEIDO_CONFIG_FILE` — path to `config.yaml` (`WFE_CONFIG_FILE` is a
-  deprecated alias)
+- `KALEIDO_CONFIG_FILE` — path to `config.yaml`
 - `CONFIG_FILE` — path to `provider-config.yaml` (defaults to
   `./config/provider-config.yaml`)
 

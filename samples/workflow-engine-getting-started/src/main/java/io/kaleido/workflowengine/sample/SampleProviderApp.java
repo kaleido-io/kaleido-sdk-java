@@ -22,7 +22,7 @@ public class SampleProviderApp {
     }
 
     private static ClientConfig resolveConfig() {
-        // 1. KALEIDO_CONFIG_FILE (or legacy WFE_CONFIG_FILE) env var takes highest precedence
+        // 1. KALEIDO_CONFIG_FILE env var takes highest precedence
         var envPath = ConfigLoader.resolveConfigPath(null);
         if (envPath != null) {
             return ConfigLoader.load(Path.of(envPath));
