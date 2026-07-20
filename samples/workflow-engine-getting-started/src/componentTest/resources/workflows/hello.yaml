@@ -1,0 +1,25 @@
+# Minimal workflow bound to the sample's `hello` transaction handler:
+# HelloTransactionHandler replies with WSEvaluateReplyResult.stage("complete")
+# for every transaction it sees, unconditionally — so the only requirement
+# here is a stage literally named "complete" for it to land in.
+operations:
+- name: greet
+  type: asynchronous
+  stage: greet
+  inputSchema: {
+    "type": "object",
+    "additionalProperties": false
+  }
+stages:
+- name: greet
+  type: pending
+  handler: hello
+  fullState: true
+- name: complete
+  type: success
+- name: failed
+  type: failure
+handlerBindings:
+  hello:
+    provider: hello-sample
+    providerHandler: hello

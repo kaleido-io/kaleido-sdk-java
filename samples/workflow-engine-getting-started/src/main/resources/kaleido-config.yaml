@@ -1,6 +1,6 @@
 # providerName must match the handler registration name used by the WFE.
 workflow-engine:
-  providerName: java-sample-provider
+  providerName: getting-started-sample
   providerMetadata:
     displayName: Java Sample Provider
     description: A sample provider for the Kaleido Workflow Engine using the Java SDK
