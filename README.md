@@ -29,28 +29,15 @@ runnable provider.
 
 ## Installation
 
-Artifacts are published to **GitHub Packages** (Maven). You need a GitHub PAT with the `read:packages` scope.
+Artifacts are published to **GitHub Packages** (Maven).
 
 ### Gradle (Kotlin DSL)
-
-Add credentials to `~/.gradle/gradle.properties`:
-
-```properties
-gpr.user=GITHUB_USERNAME
-gpr.key=ghp_GITHUB_PAT
-```
-
-Then in the `build.gradle.kts`:
 
 ```kotlin
 repositories {
     mavenCentral()
     maven {
         url = uri("https://maven.pkg.github.com/kaleido-io/kaleido-sdk-java")
-        credentials {
-            username = findProperty("gpr.user") as String? ?: ""
-            password = findProperty("gpr.key") as String? ?: ""
-        }
     }
 }
 
@@ -60,20 +47,6 @@ dependencies {
 ```
 
 ### Maven
-
-Add credentials to `~/.m2/settings.xml`:
-
-```xml
-<servers>
-  <server>
-    <id>github</id>
-    <username>GITHUB_USERNAME</username>
-    <password>ghp_GITHUB_PAT</password>
-  </server>
-</servers>
-```
-
-Then in the `pom.xml`:
 
 ```xml
 <repositories>
@@ -119,7 +92,7 @@ derive from it.
 
 **From the GitHub UI:**
 1. Go to **Actions → Kaleido Workflow Engine Java SDK Release → Run workflow**.
-2. Set `sdk_version` to e.g. `v0.1.0-rc.1`.
+2. Set `sdk_version` (e.g. `v0.1.0-rc.1`)
 3. Tick `prerelease` (if this is a pre-release)
 4. Run. This publishes `io.kaleido:workflow-engine-sdk:0.1.0-rc.1` and tags `v0.1.0-rc.1`.
 
