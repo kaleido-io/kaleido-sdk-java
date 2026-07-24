@@ -25,7 +25,7 @@ sourceSets {
 configurations["componentTestImplementation"].extendsFrom(configurations.implementation.get())
 configurations["componentTestRuntimeOnly"].extendsFrom(configurations.runtimeOnly.get())
 
-val sdkVersion = providers.gradleProperty("sdkVersion").getOrElse("26.5.0-rc.1")
+val sdkVersion = providers.gradleProperty("sdkVersion").getOrElse("v1.0.0-rc.1")
 
 dependencies {
     implementation("io.kaleido:workflow-engine-sdk:$sdkVersion")
