@@ -127,13 +127,18 @@ public final class ConfigLoader {
             log.warn("Unknown setupLifecycle '{}'; using default 'boot'", lifecycle);
         }
 
-        var url = section.path("url").asText("");
+        var restUrl = section.path("url").asText("");
+        var wsUrl = section.path("ws").path("url").asText("");
         var serverNode = section.path("server");
 
-        // Inbound: a "server" section with no "url" means the app creates a
-        // WebSocket server and the engine dials in, rather than the app
-        // dialing out (see ServerConfig).
-        if (url.isEmpty() && serverNode.isObject()) {
+        if (!restUrl.isEmpty()) {
+            builder.restUrl(java.net.URI.create(restUrl));
+        }
+
+        // Inbound: a "server" section with no ws.url means the app creates a
+        // WebSocket server and the engine dials in, rather than the app dialing
+        // out (see ServerConfig).
+        if (wsUrl.isEmpty() && serverNode.isObject()) {
             builder.server(parseServerConfig(serverNode));
             if (serverNode.has("heartbeatInterval")) {
                 var hbNode = serverNode.get("heartbeatInterval");
@@ -141,12 +146,25 @@ public final class ConfigLoader {
                 builder.heartbeatInterval(parseTimeString(hbValue));
             }
         } else {
-            var authNode = section.path("auth");
-            if (url.isEmpty() || !authNode.isObject()) {
-                throw SDKErrors.newError(SDKErrors.MSG_CONFIG_URL_AUTH_MISSING, source);
+            // Outbound: a websocket URL is required to dial out.
+            if (wsUrl.isEmpty()) {
+                throw SDKErrors.newError(SDKErrors.MSG_CONFIG_WS_URL_MISSING, source);
             }
-            builder.url(java.net.URI.create(httpUrlToWsUrl(url)));
-            builder.auth(parseAuth(authNode));
+            builder.wsUrl(java.net.URI.create(wsUrl));
+
+            var tls = parseTls(section.path("tls"), false);
+            if (tls != null) {
+                builder.tls(tls);
+            }
+
+            var authNode = section.path("auth");
+            if (authNode.isObject()) {
+                builder.auth(parseAuth(authNode));
+            }
+
+            if (!authNode.isObject() && (tls == null || !tls.hasIdentity())) {
+                throw SDKErrors.newError(SDKErrors.MSG_CONFIG_NO_CREDENTIALS, source);
+            }
         }
 
         builder.serviceBindings(parseServiceBindings(root, section));
@@ -158,17 +176,25 @@ public final class ConfigLoader {
     private static ServerConfig parseServerConfig(JsonNode serverNode) {
         var address = serverNode.path("address").asText(null);
         var port = serverNode.has("port") ? serverNode.get("port").asInt() : null;
-        ServerConfig.TlsConfig tls = null;
-        var tlsNode = serverNode.path("tls");
-        if (tlsNode.isObject() && tlsNode.path("enabled").asBoolean(false)) {
-            tls = new ServerConfig.TlsConfig(
-                    true,
-                    tlsNode.has("caFile") ? tlsNode.get("caFile").asText() : null,
-                    tlsNode.has("certFile") ? tlsNode.get("certFile").asText() : null,
-                    tlsNode.has("keyFile") ? tlsNode.get("keyFile").asText() : null,
-                    tlsNode.path("clientAuth").asBoolean(false));
+        return new ServerConfig(address, port, parseTls(serverNode.path("tls"), true));
+    }
+
+    /**
+     * Parses a {@code tls} block, returning null unless it is present with
+     * {@code enabled: true}. The same key names serve both directions; the
+     * direction-specific flags are read only where they apply.
+     */
+    private static TlsConfig parseTls(JsonNode tlsNode, boolean server) {
+        if (!tlsNode.isObject() || !tlsNode.path("enabled").asBoolean(false)) {
+            return null;
         }
-        return new ServerConfig(address, port, tls);
+        var caFile = tlsNode.has("caFile") ? tlsNode.get("caFile").asText() : null;
+        var certFile = tlsNode.has("certFile") ? tlsNode.get("certFile").asText() : null;
+        var keyFile = tlsNode.has("keyFile") ? tlsNode.get("keyFile").asText() : null;
+        return server
+                ? TlsConfig.forServer(caFile, certFile, keyFile, tlsNode.path("clientAuth").asBoolean(false))
+                : TlsConfig.forClient(caFile, certFile, keyFile,
+                        tlsNode.path("insecureSkipHostVerify").asBoolean(false));
     }
 
     private static Map<String, ServiceBindingConfig> parseServiceBindings(JsonNode root, JsonNode section) {
@@ -226,47 +252,6 @@ public final class ConfigLoader {
             path = System.getenv(KALEIDO_CONFIG_FILE);
         }
         return path == null || path.isBlank() ? null : path.trim();
-    }
-
-    /**
-     * Build a WebSocket URL from an HTTP(S) base URL: strips a trailing
-     * {@code /rest}, converts the scheme, and appends {@code /ws}.
-     */
-    public static String httpUrlToWsUrl(String url) {
-        var result = url;
-        if (result.endsWith("/rest")) {
-            result = result.substring(0, result.length() - 5);
-        }
-        result = result.replaceAll("/+$", "");
-        if (result.startsWith("http://")) {
-            result = "ws://" + result.substring(7);
-        } else if (result.startsWith("https://")) {
-            result = "wss://" + result.substring(8);
-        }
-        if (!result.endsWith("/ws")) {
-            result += "/ws";
-        }
-        return result;
-    }
-
-    /**
-     * Build a REST base URL from a WebSocket URL: strips a trailing {@code /ws},
-     * converts the scheme, and appends {@code /rest}.
-     */
-    public static String wsUrlToRestUrl(String wsUrl) {
-        var result = wsUrl;
-        if (result.endsWith("/ws")) {
-            result = result.substring(0, result.length() - 3);
-        }
-        if (!result.endsWith("/rest")) {
-            result += "/rest";
-        }
-        if (result.startsWith("ws://")) {
-            result = "http://" + result.substring(5);
-        } else if (result.startsWith("wss://")) {
-            result = "https://" + result.substring(6);
-        }
-        return result;
     }
 
     /**

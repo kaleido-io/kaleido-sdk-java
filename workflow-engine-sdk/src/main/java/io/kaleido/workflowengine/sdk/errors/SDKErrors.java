@@ -5,8 +5,20 @@
 package io.kaleido.workflowengine.sdk.errors;
 
 /**
- * SDK error message catalog. The KA1406XX codes are shared across the Kaleido
- * SDK family and must stay aligned with the other language SDKs.
+ * SDK error message catalog, in two ranges.
+ *
+ * <p><strong>KA1406XX is shared across the Kaleido SDK family.</strong> A code
+ * means the same thing in every language SDK, so a code is never repurposed to
+ * say something new, and a new one is only allocated in step with the others.
+ * The whole of KA1406XX is reserved for that shared set. Gaps are
+ * codes another SDK claimed for a condition this one does not have.
+ *
+ * <p><strong>KA1500XX is this SDK's own.</strong> Conditions with no counterpart
+ * elsewhere are allocated here, leaving the shared range free to grow without
+ * colliding.
+ *
+ * <p>Within each range codes are allocated in creation order, so the groupings
+ * below are for reading and do not own contiguous blocks.
  */
 public final class SDKErrors {
     private SDKErrors() {}
@@ -60,18 +72,19 @@ public final class SDKErrors {
     public static final ErrorMessage MSG_CONFIG_FILE_NOT_SET = fe("KA140635", "Workflow engine config file not set: pass a config file or set %s");
     public static final ErrorMessage MSG_CONFIG_FILE_INVALID = fe("KA140636", "Invalid workflow engine config file: %s");
     public static final ErrorMessage MSG_CONFIG_SECTION_MISSING = fe("KA140637", "Missing \"workflow-engine\" section in %s");
-    public static final ErrorMessage MSG_CONFIG_URL_AUTH_MISSING = fe("KA140638", "Missing url or auth in workflow-engine section in %s");
     public static final ErrorMessage MSG_HANDLER_INVALID_TYPE = fe("KA140639", "Handler \"%s\" does not implement TransactionHandler, EventSource, or EventProcessor");
     public static final ErrorMessage MSG_DEADLINE_NOT_WAITING = fe("KA140640", "Deadline can only be used with WAITING result type (action='%s' result='%s')");
 
     // Engine connection errors
     public static final ErrorMessage MSG_ENGINE_NOT_CONNECTED = fe("KA140627", "WebSocket is not connected. Cannot submit async transactions");
 
-    // Java-SDK-specific errors (KA1500XX range retained from the first pass)
-    public static final ErrorMessage MSG_REQUEST_CANCELLED = fe("KA140641", "Request cancelled: %s");
-    public static final ErrorMessage MSG_SERVICE_BINDING_NOT_FOUND = fe("KA140642", "Service binding '%s' not found. Available bindings: %s");
-    public static final ErrorMessage MSG_HANDLER_ALREADY_REGISTERED = fe("KA140643", "Handler '%s' is already registered");
+    // Errors specific to this SDK (KA1500XX) — see the range note on the class.
     public static final ErrorMessage MSG_REST_REQUEST_FAILED = fe("KA150040", "REST request failed: %s");
+    public static final ErrorMessage MSG_REQUEST_CANCELLED = fe("KA150041", "Request cancelled: %s");
+    public static final ErrorMessage MSG_SERVICE_BINDING_NOT_FOUND = fe("KA150042", "Service binding '%s' not found. Available bindings: %s");
+    public static final ErrorMessage MSG_HANDLER_ALREADY_REGISTERED = fe("KA150043", "Handler '%s' is already registered");
+    public static final ErrorMessage MSG_CONFIG_NO_CREDENTIALS = fe("KA150044", "Outbound workflow-engine connection in %s has no credentials: set either tls.certFile for mutual TLS, or auth");
+    public static final ErrorMessage MSG_CONFIG_WS_URL_MISSING = fe("KA150045", "Missing ws.url (or a server section) in workflow-engine section in %s");
 
     /**
      * Format an error message with arguments — supports simple %s placeholders.

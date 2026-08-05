@@ -16,11 +16,13 @@ import java.util.Map;
  * or load from a YAML config file with {@link ConfigLoader}.
  */
 public record ClientConfig(
-        URI url,
+        URI wsUrl,
+        URI restUrl,
         ServerConfig server,
         String providerName,
         JsonNode providerMetadata,
         AuthConfig auth,
+        TlsConfig tls,
         Map<String, String> extraHeaders,
         Duration reconnectDelay,
         Duration maxReconnectDelay,
@@ -38,11 +40,13 @@ public record ClientConfig(
     }
 
     public static class Builder {
-        private URI url;
+        private URI wsUrl;
+        private URI restUrl;
         private ServerConfig server;
         private String providerName;
         private JsonNode providerMetadata;
         private AuthConfig auth;
+        private TlsConfig tls;
         private Map<String, String> extraHeaders;
         private Duration reconnectDelay = Duration.ofSeconds(1);
         private Duration maxReconnectDelay = Duration.ofSeconds(30);
@@ -55,11 +59,13 @@ public record ClientConfig(
         private Map<String, ServiceBindingConfig> serviceBindings = Map.of();
         private JsonNode customConfig;
 
-        public Builder url(URI url) { this.url = url; return this; }
+        public Builder wsUrl(URI wsUrl) { this.wsUrl = wsUrl; return this; }
+        public Builder restUrl(URI restUrl) { this.restUrl = restUrl; return this; }
         public Builder server(ServerConfig server) { this.server = server; return this; }
         public Builder providerName(String providerName) { this.providerName = providerName; return this; }
         public Builder providerMetadata(JsonNode providerMetadata) { this.providerMetadata = providerMetadata; return this; }
         public Builder auth(AuthConfig auth) { this.auth = auth; return this; }
+        public Builder tls(TlsConfig tls) { this.tls = tls; return this; }
         public Builder extraHeaders(Map<String, String> extraHeaders) { this.extraHeaders = extraHeaders; return this; }
         public Builder reconnectDelay(Duration reconnectDelay) { this.reconnectDelay = reconnectDelay; return this; }
         public Builder maxReconnectDelay(Duration maxReconnectDelay) { this.maxReconnectDelay = maxReconnectDelay; return this; }
@@ -73,7 +79,7 @@ public record ClientConfig(
         public Builder customConfig(JsonNode customConfig) { this.customConfig = customConfig; return this; }
 
         public ClientConfig build() {
-            return new ClientConfig(url, server, providerName, providerMetadata, auth, extraHeaders,
+            return new ClientConfig(wsUrl, restUrl, server, providerName, providerMetadata, auth, tls, extraHeaders,
                     reconnectDelay, maxReconnectDelay, reconnectDelayFactor, maxAttempts,
                     heartbeatInterval, pongTimeout, resultTimeout,
                     setupLifecycle, serviceBindings, customConfig);

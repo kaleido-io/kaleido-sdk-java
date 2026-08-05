@@ -18,7 +18,4 @@ public record ServerConfig(String address, Integer port, TlsConfig tls) {
     public int resolvedPort() {
         return port != null ? port : DEFAULT_PORT;
     }
-
-    public record TlsConfig(boolean enabled, String caFile, String certFile, String keyFile, boolean clientAuth) {
-    }
 }

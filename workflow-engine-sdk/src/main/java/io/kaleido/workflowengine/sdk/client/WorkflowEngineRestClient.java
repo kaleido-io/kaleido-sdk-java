@@ -18,7 +18,6 @@ import java.util.concurrent.CompletableFuture;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import io.kaleido.workflowengine.sdk.config.ClientConfig;
-import io.kaleido.workflowengine.sdk.config.ConfigLoader;
 import io.kaleido.workflowengine.sdk.errors.SDKErrors;
 import io.kaleido.workflowengine.sdk.protocol.JSON;
 
@@ -48,8 +47,8 @@ public class WorkflowEngineRestClient {
                 .build();
         this.extraHeaders = config.extraHeaders() != null ? config.extraHeaders() : Map.of();
 
-        if (config.url() != null) {
-            this.baseUrl = URI.create(ConfigLoader.wsUrlToRestUrl(config.url().toString()));
+        if (config.restUrl() != null) {
+            this.baseUrl = config.restUrl();
         } else {
             var account = System.getenv("ACCOUNT");
             var environment = System.getenv("ENVIRONMENT");

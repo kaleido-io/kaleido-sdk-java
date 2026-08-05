@@ -4,84 +4,99 @@
 
 package io.kaleido.workflowengine.sdk.runtime;
 
+import org.bouncycastle.asn1.ASN1OctetString;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.security.KeyFactory;
 import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.spec.PKCS8EncodedKeySpec;
-import java.util.Arrays;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Round-trips a JDK-generated RSA key through {@link InboundTls#pkcs1RsaToPkcs8}
- * to prove the hand-rolled DER wrapping actually reconstructs a loadable,
- * equivalent PKCS8 key from PKCS1 bytes — not just "didn't throw".
+ * Proves {@link PemTls#pkcs1RsaToPkcs8}'s hand-rolled DER wrapping reconstructs
+ * a loadable, equivalent PKCS8 key from PKCS1 bytes — not just "didn't throw".
+ *
+ * <p>Checked two ways, because they make different claims: the JDK's
+ * {@code KeyFactory} accepting the result is what production actually depends
+ * on, while an ASN.1 parse confirms the bytes are structurally what was
+ * intended.
  */
 class Pkcs1ToPkcs8Test {
 
-    @Test
-    void roundTripsRealRsaKey() throws Exception {
+    private static RSAPrivateCrtKey original;
+    private static byte[] pkcs1;
+
+    @BeforeAll
+    static void generateKey() throws Exception {
         var keyGen = KeyPairGenerator.getInstance("RSA");
         keyGen.initialize(2048);
-        var keyPair = keyGen.generateKeyPair();
-        var original = (RSAPrivateKey) keyPair.getPrivate();
-        var originalPkcs8 = original.getEncoded();
+        original = (RSAPrivateCrtKey) keyGen.generateKeyPair().getPrivate();
+        pkcs1 = extractPkcs1FromPkcs8(original.getEncoded());
+    }
 
-        // A JDK RSA private key's PKCS8 encoding is exactly
-        // SEQUENCE { INTEGER version, AlgorithmIdentifier, OCTET STRING pkcs1 } -
-        // extract that OCTET STRING's content to get genuine PKCS1 bytes.
-        var pkcs1 = extractPkcs1FromPkcs8(originalPkcs8);
-        var rewrapped = InboundTls.pkcs1RsaToPkcs8(pkcs1);
+    @Test
+    void roundTripsRealRsaKey() throws Exception {
+        var rewrapped = PemTls.pkcs1RsaToPkcs8(pkcs1);
 
-        var reloaded = (RSAPrivateKey) KeyFactory.getInstance("RSA")
+        var reloaded = (RSAPrivateCrtKey) KeyFactory.getInstance("RSA")
                 .generatePrivate(new PKCS8EncodedKeySpec(rewrapped));
 
         assertEquals(original.getModulus(), reloaded.getModulus());
         assertEquals(original.getPrivateExponent(), reloaded.getPrivateExponent());
     }
 
+    @Test
+    void wrapIsStructurallyValidPkcs8() throws Exception {
+        var wrapped = PemTls.pkcs1RsaToPkcs8(pkcs1);
+
+        var info = PrivateKeyInfo.getInstance(wrapped);
+        assertEquals(PKCSObjectIdentifiers.rsaEncryption, info.getPrivateKeyAlgorithm().getAlgorithm());
+        assertEquals(0, info.getVersion().intValueExact(), "PKCS8 PrivateKeyInfo version must be 0");
+
+        var parsed = org.bouncycastle.asn1.pkcs.RSAPrivateKey.getInstance(info.parsePrivateKey());
+        assertEquals(original.getModulus(), parsed.getModulus());
+        assertEquals(original.getPrivateExponent(), parsed.getPrivateExponent());
+        assertEquals(original.getPublicExponent(), parsed.getPublicExponent());
+        // The CRT coefficient is the last field in the structure, so a length
+        // error would corrupt it while leaving the leading fields intact.
+        assertEquals(original.getCrtCoefficient(), parsed.getCoefficient());
+    }
+
     /**
-     * Parses {@code SEQUENCE { INTEGER, SEQUENCE, OCTET STRING }} and returns
-     * the OCTET STRING's content bytes (the PKCS1 {@code RSAPrivateKey} DER).
+     * Exercises {@code derLength}'s short-form/long-form boundary, which a real
+     * 2048-bit key (~1190 bytes, always long form) never reaches. The payloads
+     * are not valid keys — only the DER framing around them is under test.
      */
-    static byte[] extractPkcs1FromPkcs8(byte[] pkcs8) {
-        var offset = new int[]{0};
-        descendInto(pkcs8, offset); // outer SEQUENCE - descend into its content
-        readTlv(pkcs8, offset); // INTEGER version - skip
-        readTlv(pkcs8, offset); // AlgorithmIdentifier SEQUENCE - skip
-        return readTlv(pkcs8, offset); // OCTET STRING content == PKCS1 bytes
+    @ParameterizedTest
+    @ValueSource(ints = {1, 127, 128, 129, 255, 256, 1024})
+    void wrapsPayloadsAcrossDerLengthBoundaries(int payloadSize) {
+        var payload = new byte[payloadSize];
+        for (var i = 0; i < payloadSize; i++) {
+            payload[i] = (byte) (i % 251);
+        }
+
+        var wrapped = PemTls.pkcs1RsaToPkcs8(payload);
+
+        var sequence = ASN1Sequence.getInstance(wrapped);
+        assertEquals(3, sequence.size(), "expected SEQUENCE { version, AlgorithmIdentifier, OCTET STRING }");
+        assertArrayEquals(payload, ASN1OctetString.getInstance(sequence.getObjectAt(2)).getOctets());
     }
 
-    /** Advances {@code offset[0]} past a TLV's tag+length, positioning at its content start. */
-    private static void descendInto(byte[] data, int[] offset) {
-        offset[0]++; // tag
-        var lenByte = data[offset[0]] & 0xFF;
-        offset[0]++;
-        if (lenByte >= 0x80) {
-            offset[0] += (lenByte & 0x7F);
-        }
-    }
-
-    /** Reads one TLV at {@code offset[0]}, advances past it entirely, and returns its content bytes. */
-    private static byte[] readTlv(byte[] data, int[] offset) {
-        offset[0]++; // tag
-        var lenByte = data[offset[0]] & 0xFF;
-        offset[0]++;
-        int length;
-        if (lenByte < 0x80) {
-            length = lenByte;
-        } else {
-            var numBytes = lenByte & 0x7F;
-            length = 0;
-            for (var i = 0; i < numBytes; i++) {
-                length = (length << 8) | (data[offset[0]] & 0xFF);
-                offset[0]++;
-            }
-        }
-        var contentStart = offset[0];
-        offset[0] += length;
-        return Arrays.copyOfRange(data, contentStart, contentStart + length);
+    /**
+     * Returns the PKCS1 {@code RSAPrivateKey} DER carried inside a PKCS8
+     * encoding, which is what a JDK RSA private key's {@code getEncoded()}
+     * wraps. Shared with {@link PemTlsKeyParsingTest}.
+     */
+    static byte[] extractPkcs1FromPkcs8(byte[] pkcs8) throws Exception {
+        return PrivateKeyInfo.getInstance(pkcs8).parsePrivateKey().toASN1Primitive().getEncoded("DER");
     }
 }

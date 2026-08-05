@@ -4,6 +4,8 @@ workflow-engine:
   providerMetadata:
     displayName: Java Sample Provider
     description: A sample provider for the Kaleido Workflow Engine using the Java SDK
+  ws:
+    url: wss://my-account.my-kaleido.io/endpoint/my-environment/my-workflow-engine/ws
   url: https://my-account.my-kaleido.io/endpoint/my-environment/my-workflow-engine/rest
   auth:
     type: basic

@@ -70,7 +70,9 @@ key; named service bindings live under `service-bindings`:
 ```yaml
 workflow-engine:
   providerName: my-provider
-  url: http://localhost:5503
+  ws:
+    url: ws://localhost:5503/ws   # WebSocket endpoint (required outbound)
+  url: http://localhost:5503      # REST API base (only for REST calls)
   auth:
     type: token           # or "basic" with username/password
     token: dev-token-123
@@ -79,6 +81,12 @@ workflow-engine:
   retryDelay: 2s          # time string: ms, s, m, h (plain number = seconds)
   # maxRetries: omit for infinite reconnection (recommended)
   # setupLifecycle: boot  # or "deferred" — see setup hooks below
+  # tls:                  # outbound TLS; see "Connection credentials" below
+  #   enabled: true
+  #   caFile: /etc/tls/ca.crt
+  #   certFile: /etc/tls/tls.crt
+  #   keyFile: /etc/tls/tls.key
+  #   insecureSkipHostVerify: false
 
 service-bindings:
   asset-manager:
@@ -101,6 +109,35 @@ A service binding maps a name to a service's connection information. Swapping a
 binding between `non-hosted` (you supply URL and auth) and `hosted` (the
 platform resolves the instance through the provider proxy) requires no code
 change, so the same provider runs locally and hosted.
+
+### Endpoints
+
+`ws.url` is the WebSocket endpoint and `url` is the REST API base. They are
+independent and each is used exactly as written — neither is inferred from the
+other.
+
+Outbound mode requires `ws.url`. `url` is needed only to call the engine's REST
+API, and applies in either direction: an inbound provider that makes REST calls
+sets `url` alongside `server`.
+
+### Connection credentials
+
+An outbound connection must authenticate itself with either `auth` or a client
+certificate under `tls`, and loading the config file fails if it has neither
+rather than connecting anonymously.
+
+`tls.certFile`/`tls.keyFile` are the client certificate. `tls.caFile` verifies
+the engine's certificate; omitting it falls back to the JDK's default trust
+store, which will not contain a platform-internal CA. Keys must be unencrypted
+RSA, in either PKCS8 or PKCS1 form.
+
+`tls.insecureSkipHostVerify` waives only the check that the certificate's subject
+matches the host dialed; the chain is still verified against `caFile`.
+
+The same fields configure the inbound server under `server.tls`, where
+`clientAuth: true` additionally requires the engine to present a certificate.
+Inbound needs no `auth` — the engine dials in and identifies itself with that
+certificate.
 
 ### Provider config (`provider-config.yaml`)
 
@@ -156,6 +193,13 @@ client.transactionHandler("my-handler", myHandler)
 The low-level `registerTransactionHandler` / `registerEventSource` /
 `registerEventProcessor` + `connect()` methods remain available when you don't
 need setup hooks.
+
+In outbound mode `start()` **blocks until the first connection succeeds**,
+retrying with exponential backoff — indefinitely unless `maxRetries` is set. Any
+readiness signal raised after it therefore stays unset while the engine is
+unreachable, which will show a container as NotReady. Set `maxRetries`, or
+start the connection on another thread, to report ready before the connection
+is established.
 
 ## Transaction handlers
 
