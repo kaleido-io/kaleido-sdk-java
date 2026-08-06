@@ -158,6 +158,22 @@ public record MyConfig(int batchSize, List<String> allowlist) {}
 MyConfig config = ctx.config(MyConfig.class);
 ```
 
+### Reading the rest of the config file
+
+`provider-config.yaml` is the usual home for application settings, but an
+application that keeps its own sections alongside the platform's — because
+something else renders the whole file — can read the document once and take both
+from it, instead of parsing it twice:
+
+```java
+var root = ConfigLoader.loadDocument(path);
+var client = ConfigLoader.fromDocument(root, path.toString());
+var mine = root.path("my-section");
+```
+
+`fromDocument` applies the same validation as `load`, so this is not a way
+around the credential check on an outbound connection.
+
 ## Core concepts
 
 ### WorkflowEngineClient

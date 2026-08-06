@@ -8,6 +8,10 @@ import io.kaleido.workflowengine.sdk.service.ServiceBindingConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.kaleido.workflowengine.sdk.errors.SDKException;
+
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -496,6 +500,56 @@ class ConfigLoaderTest {
         var custom = ConfigLoader.load(file).customConfig();
         assertNotNull(custom);
         assertEquals("enabled", custom.get("mySetting").asText());
+    }
+
+    @Test
+    void loadDocumentExposesSiblingSections(@TempDir Path tempDir) throws Exception {
+        // An application whose own settings share the config file reads it once,
+        // rather than re-parsing to reach a section the SDK does not interpret.
+        var file = write(tempDir, """
+                workflow-engine:
+                  ws:
+                    url: ws://localhost:5503/ws
+                  providerName: my-provider
+                  auth:
+                    type: token
+                    token: my-secret
+                my-section:
+                  port: 5100
+                """);
+
+        var root = ConfigLoader.loadDocument(file);
+        assertEquals(5100, root.path("my-section").path("port").asInt());
+
+        var config = ConfigLoader.fromDocument(root, file.toString());
+        assertEquals("my-provider", config.providerName());
+        assertEquals("ws://localhost:5503/ws", config.wsUrl().toString());
+    }
+
+    @Test
+    void loadDocumentFromStream() throws Exception {
+        var root = ConfigLoader.loadDocument(new ByteArrayInputStream(
+                "my-section:\n  port: 5100\n".getBytes(StandardCharsets.UTF_8)));
+        assertEquals(5100, root.path("my-section").path("port").asInt());
+    }
+
+    @Test
+    void loadDocumentOnMissingFileFails(@TempDir Path tempDir) {
+        var e = assertThrows(SDKException.class, () -> ConfigLoader.loadDocument(tempDir.resolve("absent.yaml")));
+        assertEquals("KA140636", e.code());
+    }
+
+    @Test
+    void fromDocumentValidatesLikeLoad(@TempDir Path tempDir) throws Exception {
+        // The public entry point must not be a way around the credential check.
+        var root = ConfigLoader.loadDocument(write(tempDir, """
+                workflow-engine:
+                  ws:
+                    url: ws://localhost:5503/ws
+                  providerName: my-provider
+                """));
+        var e = assertThrows(SDKException.class, () -> ConfigLoader.fromDocument(root, "test"));
+        assertEquals("KA150044", e.code());
     }
 
     @Test

@@ -47,6 +47,8 @@ public final class ConfigLoader {
 
     static final String DEFAULT_PROVIDER_CONFIG_PATH = "./config/provider-config.yaml";
 
+    private static final String STREAM_SOURCE = "(stream)";
+
     /**
      * Load client config from the file named by {@code KALEIDO_CONFIG_FILE}.
      */
@@ -62,25 +64,55 @@ public final class ConfigLoader {
      * Load client config from a YAML file.
      */
     public static ClientConfig load(Path file) {
-        try {
-            return parse(YAML_MAPPER.readTree(Files.readString(file)), file.toString());
-        } catch (IOException e) {
-            throw SDKErrors.newError(e, SDKErrors.MSG_CONFIG_FILE_INVALID, file);
-        }
+        return fromDocument(loadDocument(file), file.toString());
     }
 
     /**
      * Load client config from a YAML stream.
      */
     public static ClientConfig load(InputStream inputStream) {
+        return fromDocument(loadDocument(inputStream), STREAM_SOURCE);
+    }
+
+    /**
+     * Parse a config file into its raw tree without interpreting it.
+     *
+     * <p>For applications that keep their own settings in the same document.
+     * Pair with {@link #fromDocument} to read the file once and derive the
+     * client config from the same tree:
+     *
+     * <pre>{@code
+     * var root = ConfigLoader.loadDocument(path);
+     * var client = ConfigLoader.fromDocument(root, path.toString());
+     * var mine = root.path("my-section");
+     * }</pre>
+     */
+    public static JsonNode loadDocument(Path file) {
         try {
-            return parse(YAML_MAPPER.readTree(inputStream), "(stream)");
+            return YAML_MAPPER.readTree(Files.readString(file));
         } catch (IOException e) {
-            throw SDKErrors.newError(e, SDKErrors.MSG_CONFIG_FILE_INVALID, "(stream)");
+            throw SDKErrors.newError(e, SDKErrors.MSG_CONFIG_FILE_INVALID, file);
         }
     }
 
-    private static ClientConfig parse(JsonNode root, String source) {
+    /**
+     * As {@link #loadDocument(Path)}, from a stream.
+     */
+    public static JsonNode loadDocument(InputStream inputStream) {
+        try {
+            return YAML_MAPPER.readTree(inputStream);
+        } catch (IOException e) {
+            throw SDKErrors.newError(e, SDKErrors.MSG_CONFIG_FILE_INVALID, STREAM_SOURCE);
+        }
+    }
+
+    /**
+     * Build client config from an already-parsed config tree.
+     *
+     * @param root   the parsed document, as returned by {@link #loadDocument}
+     * @param source names the document in error messages
+     */
+    public static ClientConfig fromDocument(JsonNode root, String source) {
         if (root == null || !root.isObject()) {
             throw SDKErrors.newError(SDKErrors.MSG_CONFIG_FILE_INVALID, source);
         }
