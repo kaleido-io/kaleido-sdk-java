@@ -8,6 +8,10 @@ import io.kaleido.workflowengine.sdk.service.ServiceBindingConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.kaleido.workflowengine.sdk.errors.SDKException;
+
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -38,6 +42,8 @@ class ConfigLoaderTest {
         var file = write(tempDir, """
                 workflow-engine:
                   url: http://localhost:5503
+                  ws:
+                    url: ws://localhost:5503/ws
                   providerName: my-provider
                   auth:
                     type: token
@@ -50,7 +56,8 @@ class ConfigLoaderTest {
 
         var config = ConfigLoader.load(file);
         assertEquals("my-provider", config.providerName());
-        assertEquals("ws://localhost:5503/ws", config.url().toString());
+        assertEquals("ws://localhost:5503/ws", config.wsUrl().toString());
+        assertEquals("http://localhost:5503", config.restUrl().toString());
         assertEquals(5, config.maxAttempts());
         assertEquals(Duration.ofSeconds(3), config.reconnectDelay());
 
@@ -64,7 +71,8 @@ class ConfigLoaderTest {
     void parseBasicAuth(@TempDir Path tempDir) throws Exception {
         var file = write(tempDir, """
                 workflow-engine:
-                  url: https://example.com
+                  ws:
+                    url: wss://example.com/ws
                   providerName: basic-provider
                   auth:
                     type: basic
@@ -85,7 +93,8 @@ class ConfigLoaderTest {
                   providerName: meta-provider
                   providerMetadata:
                     displayName: My Provider
-                  url: http://localhost:5503
+                  ws:
+                    url: ws://localhost:5503/ws
                   auth: {type: basic, username: u, password: p}
                 """);
 
@@ -98,7 +107,8 @@ class ConfigLoaderTest {
         var file = write(tempDir, """
                 workflow-engine:
                   providerName: retry-provider
-                  url: http://localhost:5503
+                  ws:
+                    url: ws://localhost:5503/ws
                   auth: {type: basic, username: u, password: p}
                   retryDelay: 3
                 """);
@@ -110,7 +120,8 @@ class ConfigLoaderTest {
         var base = """
                 workflow-engine:
                   providerName: lifecycle-provider
-                  url: http://localhost:5503
+                  ws:
+                    url: ws://localhost:5503/ws
                   auth: {type: basic, username: u, password: p}
                 """;
 
@@ -129,7 +140,8 @@ class ConfigLoaderTest {
         var file = write(tempDir, """
                 workflow-engine:
                   providerName: bindings-provider
-                  url: http://localhost:5503
+                  ws:
+                    url: ws://localhost:5503/ws
                   auth: {type: basic, username: u, password: p}
                 service-bindings:
                   asset-manager:
@@ -164,7 +176,8 @@ class ConfigLoaderTest {
         var file = write(tempDir, """
                 workflow-engine:
                   providerName: nested-bindings
-                  url: http://localhost:5503
+                  ws:
+                    url: ws://localhost:5503/ws
                   auth: {type: basic, username: u, password: p}
                   service-bindings:
                     apigw:
@@ -183,7 +196,8 @@ class ConfigLoaderTest {
         var file = write(tempDir, """
                 workflow-engine:
                   providerName: skip-bindings
-                  url: http://localhost:5503
+                  ws:
+                    url: ws://localhost:5503/ws
                   auth: {type: basic, username: u, password: p}
                 service-bindings:
                   no-id-hosted:
@@ -208,19 +222,217 @@ class ConfigLoaderTest {
     void missingProviderNameFails(@TempDir Path tempDir) throws Exception {
         var file = write(tempDir, """
                 workflow-engine:
-                  url: http://localhost:5503
+                  ws:
+                    url: ws://localhost:5503/ws
                   auth: {type: basic, username: u, password: p}
                 """);
         assertThrows(Exception.class, () -> ConfigLoader.load(file));
     }
 
     @Test
-    void missingUrlAndAuthFails(@TempDir Path tempDir) throws Exception {
+    void missingWsUrlAndServerFails(@TempDir Path tempDir) throws Exception {
         var file = write(tempDir, """
                 workflow-engine:
                   providerName: broken
                 """);
-        assertThrows(Exception.class, () -> ConfigLoader.load(file));
+        var e = assertThrows(Exception.class, () -> ConfigLoader.load(file));
+        assertTrue(e.getMessage().contains("KA150045"), e.getMessage());
+    }
+
+    @Test
+    void outboundTlsParsedAndSatisfiesCredentialCheck(@TempDir Path tempDir) throws Exception {
+        var file = write(tempDir, """
+                workflow-engine:
+                  url: https://wfe:5503
+                  ws:
+                    url: wss://wfe:5503/handler/ws
+                  providerName: mtls-provider
+                  tls:
+                    enabled: true
+                    caFile: /etc/tls/ca.crt
+                    certFile: /etc/tls/tls.crt
+                    keyFile: /etc/tls/tls.key
+                """);
+
+        var config = ConfigLoader.load(file);
+        assertEquals("wss://wfe:5503/handler/ws", config.wsUrl().toString());
+        assertEquals("https://wfe:5503", config.restUrl().toString());
+        assertNull(config.auth(), "mutual TLS is the credential; no auth block is required");
+        assertNotNull(config.tls());
+        assertTrue(config.tls().enabled());
+        assertEquals("/etc/tls/ca.crt", config.tls().caFile());
+        assertEquals("/etc/tls/tls.crt", config.tls().certFile());
+        assertEquals("/etc/tls/tls.key", config.tls().keyFile());
+        assertTrue(config.tls().hasIdentity());
+        assertFalse(config.tls().insecureSkipHostVerify());
+    }
+
+    @Test
+    void wsUrlAloneIsEnough(@TempDir Path tempDir) throws Exception {
+        var file = write(tempDir, """
+                workflow-engine:
+                  providerName: ws-only
+                  ws:
+                    url: wss://wfe:5503/handler/ws
+                  auth: {type: token, token: t}
+                """);
+
+        var config = ConfigLoader.load(file);
+        assertEquals("wss://wfe:5503/handler/ws", config.wsUrl().toString());
+        assertNull(config.restUrl(), "no REST base is invented from the WebSocket URL");
+    }
+
+    @Test
+    void wsAndRestUrlsNeedNoRelationship(@TempDir Path tempDir) throws Exception {
+        var file = write(tempDir, """
+                workflow-engine:
+                  providerName: no-guessing
+                  url: https://wfe:5503/rest
+                  ws:
+                    url: wss://elsewhere:9999/some/other/path
+                  auth: {type: token, token: t}
+                """);
+
+        var config = ConfigLoader.load(file);
+        assertEquals("wss://elsewhere:9999/some/other/path", config.wsUrl().toString());
+        assertEquals("https://wfe:5503/rest", config.restUrl().toString());
+    }
+
+    /** A REST base is not a WebSocket endpoint, and outbound mode will not invent one. */
+    @Test
+    void restUrlAloneIsNotEnoughForOutbound(@TempDir Path tempDir) throws Exception {
+        var file = write(tempDir, """
+                workflow-engine:
+                  providerName: rest-only
+                  url: https://wfe:5503
+                  auth: {type: token, token: t}
+                """);
+        var e = assertThrows(Exception.class, () -> ConfigLoader.load(file));
+        assertTrue(e.getMessage().contains("KA150045"), e.getMessage());
+    }
+
+    /** The REST base is orthogonal to direction: an inbound provider can still call the API. */
+    @Test
+    void inboundKeepsRestUrl(@TempDir Path tempDir) throws Exception {
+        var file = write(tempDir, """
+                workflow-engine:
+                  providerName: inbound-with-rest
+                  url: https://wfe:5503
+                  server:
+                    port: 6001
+                """);
+
+        var config = ConfigLoader.load(file);
+        assertNotNull(config.server());
+        assertNull(config.wsUrl());
+        assertEquals("https://wfe:5503", config.restUrl().toString());
+    }
+
+    @Test
+    void outboundWithoutAnyCredentialFails(@TempDir Path tempDir) throws Exception {
+        var file = write(tempDir, """
+                workflow-engine:
+                  url: http://wfe:5503
+                  ws:
+                    url: ws://wfe:5503/handler/ws
+                  providerName: anonymous
+                """);
+        var e = assertThrows(Exception.class, () -> ConfigLoader.load(file));
+        assertTrue(e.getMessage().contains("KA150044"), e.getMessage());
+    }
+
+    @Test
+    void outboundTlsWithoutClientCertStillNeedsAuth(@TempDir Path tempDir) throws Exception {
+        // A CA verifies the server; it says nothing about who this client is.
+        var file = write(tempDir, """
+                workflow-engine:
+                  url: https://wfe:5503
+                  ws:
+                    url: wss://wfe:5503/handler/ws
+                  providerName: server-auth-only
+                  tls:
+                    enabled: true
+                    caFile: /etc/tls/ca.crt
+                """);
+        var e = assertThrows(Exception.class, () -> ConfigLoader.load(file));
+        assertTrue(e.getMessage().contains("KA150044"), e.getMessage());
+    }
+
+    @Test
+    void outboundTlsIgnoredWhenNotEnabled(@TempDir Path tempDir) throws Exception {
+        var file = write(tempDir, """
+                workflow-engine:
+                  url: https://wfe:5503
+                  ws:
+                    url: wss://wfe:5503/handler/ws
+                  providerName: disabled-tls
+                  tls:
+                    enabled: false
+                    certFile: /etc/tls/tls.crt
+                    keyFile: /etc/tls/tls.key
+                  auth: {type: token, token: t}
+                """);
+
+        var config = ConfigLoader.load(file);
+        assertNull(config.tls());
+        assertNotNull(config.auth());
+    }
+
+    @Test
+    void outboundInsecureSkipHostVerifyParsed(@TempDir Path tempDir) throws Exception {
+        var file = write(tempDir, """
+                workflow-engine:
+                  url: https://wfe:5503
+                  ws:
+                    url: wss://wfe:5503/handler/ws
+                  providerName: skip-host-verify
+                  tls:
+                    enabled: true
+                    certFile: /etc/tls/tls.crt
+                    keyFile: /etc/tls/tls.key
+                    insecureSkipHostVerify: true
+                """);
+
+        var config = ConfigLoader.load(file);
+        assertTrue(config.tls().insecureSkipHostVerify());
+    }
+
+    @Test
+    void outboundAcceptsAuthAndTlsTogether(@TempDir Path tempDir) throws Exception {
+        var file = write(tempDir, """
+                workflow-engine:
+                  url: https://wfe:5503
+                  ws:
+                    url: wss://wfe:5503/handler/ws
+                  providerName: both
+                  auth: {type: token, token: my-secret}
+                  tls:
+                    enabled: true
+                    caFile: /etc/tls/ca.crt
+                    certFile: /etc/tls/tls.crt
+                    keyFile: /etc/tls/tls.key
+                """);
+
+        var config = ConfigLoader.load(file);
+        assertInstanceOf(AuthConfig.TokenAuth.class, config.auth());
+        assertNotNull(config.tls());
+    }
+
+    @Test
+    void inboundNeedsNoCredential(@TempDir Path tempDir) throws Exception {
+        // The credential check is outbound-only: inbound, the engine dials in and
+        // authenticates itself via server.tls.clientAuth.
+        var file = write(tempDir, """
+                workflow-engine:
+                  providerName: inbound-no-cred
+                  server:
+                    port: 6001
+                """);
+
+        var config = ConfigLoader.load(file);
+        assertNull(config.auth());
+        assertNull(config.tls());
+        assertNotNull(config.server());
     }
 
     @Test
@@ -235,7 +447,7 @@ class ConfigLoaderTest {
                 """);
 
         var config = ConfigLoader.load(file);
-        assertNull(config.url());
+        assertNull(config.wsUrl());
         assertNull(config.auth());
         assertNotNull(config.server());
         assertEquals("0.0.0.0", config.server().address());
@@ -278,7 +490,8 @@ class ConfigLoaderTest {
         var file = write(tempDir, """
                 workflow-engine:
                   providerName: custom-config
-                  url: http://localhost:5503
+                  ws:
+                    url: ws://localhost:5503/ws
                   auth: {type: basic, username: u, password: p}
                 config:
                   mySetting: enabled
@@ -290,16 +503,53 @@ class ConfigLoaderTest {
     }
 
     @Test
-    void urlConversions() {
-        assertEquals("ws://localhost:5503/ws", ConfigLoader.httpUrlToWsUrl("http://localhost:5503"));
-        assertEquals("wss://example.com/ws", ConfigLoader.httpUrlToWsUrl("https://example.com"));
-        assertEquals("ws://localhost:5503/ws", ConfigLoader.httpUrlToWsUrl("ws://localhost:5503/ws"));
-        assertEquals("ws://localhost/ws", ConfigLoader.httpUrlToWsUrl("http://localhost/"));
-        assertEquals("wss://acct.kaleido.io/endpoint/env/wfe/ws",
-                ConfigLoader.httpUrlToWsUrl("https://acct.kaleido.io/endpoint/env/wfe/rest"));
+    void loadDocumentExposesSiblingSections(@TempDir Path tempDir) throws Exception {
+        // An application whose own settings share the config file reads it once,
+        // rather than re-parsing to reach a section the SDK does not interpret.
+        var file = write(tempDir, """
+                workflow-engine:
+                  ws:
+                    url: ws://localhost:5503/ws
+                  providerName: my-provider
+                  auth:
+                    type: token
+                    token: my-secret
+                my-section:
+                  port: 5100
+                """);
 
-        assertEquals("http://localhost:5503/rest", ConfigLoader.wsUrlToRestUrl("ws://localhost:5503/ws"));
-        assertEquals("https://example.com/rest", ConfigLoader.wsUrlToRestUrl("wss://example.com/ws"));
+        var root = ConfigLoader.loadDocument(file);
+        assertEquals(5100, root.path("my-section").path("port").asInt());
+
+        var config = ConfigLoader.fromDocument(root, file.toString());
+        assertEquals("my-provider", config.providerName());
+        assertEquals("ws://localhost:5503/ws", config.wsUrl().toString());
+    }
+
+    @Test
+    void loadDocumentFromStream() throws Exception {
+        var root = ConfigLoader.loadDocument(new ByteArrayInputStream(
+                "my-section:\n  port: 5100\n".getBytes(StandardCharsets.UTF_8)));
+        assertEquals(5100, root.path("my-section").path("port").asInt());
+    }
+
+    @Test
+    void loadDocumentOnMissingFileFails(@TempDir Path tempDir) {
+        var e = assertThrows(SDKException.class, () -> ConfigLoader.loadDocument(tempDir.resolve("absent.yaml")));
+        assertEquals("KA140636", e.code());
+    }
+
+    @Test
+    void fromDocumentValidatesLikeLoad(@TempDir Path tempDir) throws Exception {
+        // The public entry point must not be a way around the credential check.
+        var root = ConfigLoader.loadDocument(write(tempDir, """
+                workflow-engine:
+                  ws:
+                    url: ws://localhost:5503/ws
+                  providerName: my-provider
+                """));
+        var e = assertThrows(SDKException.class, () -> ConfigLoader.fromDocument(root, "test"));
+        assertEquals("KA150044", e.code());
     }
 
     @Test

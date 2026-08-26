@@ -4,6 +4,8 @@ slf4j = "2.0.17"
 junit-jupiter = "5.11.4"
 zjsonpatch = "0.4.16"
 java-websocket = "1.5.7"
+# Test-only: mints the certificates the TLS tests need. Not on any runtime classpath.
+bouncycastle = "1.85"
 
 [libraries]
 java-websocket = { module = "org.java-websocket:Java-WebSocket", version.ref = "java-websocket" }
@@ -17,3 +19,5 @@ zjsonpatch = { module = "com.flipkart.zjsonpatch:zjsonpatch", version.ref = "zjs
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit-jupiter" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
+bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }

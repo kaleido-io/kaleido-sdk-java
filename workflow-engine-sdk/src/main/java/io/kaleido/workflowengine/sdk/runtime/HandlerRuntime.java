@@ -7,6 +7,7 @@ package io.kaleido.workflowengine.sdk.runtime;
 import io.kaleido.workflowengine.sdk.config.AuthConfig;
 import io.kaleido.workflowengine.sdk.config.ClientConfig;
 import io.kaleido.workflowengine.sdk.config.ServerConfig;
+import io.kaleido.workflowengine.sdk.errors.SDKErrors;
 import io.kaleido.workflowengine.sdk.handlers.CancellationSignal;
 import io.kaleido.workflowengine.sdk.handlers.EventProcessor;
 import io.kaleido.workflowengine.sdk.handlers.EventSource;
@@ -43,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.net.InetSocketAddress;
+import javax.net.ssl.SSLContext;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
@@ -89,6 +91,10 @@ public class HandlerRuntime implements ProxyAdapterRuntime, Closeable {
     private final CompletableFuture<Void> stoppedFuture = new CompletableFuture<>();
 
     private volatile WebSocket webSocket;
+
+    // Built once at start rather than per connection attempt, so unreadable or
+    // malformed TLS material fails startup instead of retrying forever.
+    private volatile SSLContext outboundSslContext;
     /** Inbound mode: the accepted connection from the engine/provider-proxy dialing in. */
     private volatile org.java_websocket.WebSocket inboundConnection;
     /** Inbound mode: the listening server; null in outbound mode. */
@@ -209,8 +215,17 @@ public class HandlerRuntime implements ProxyAdapterRuntime, Closeable {
             return;
         }
 
+        if (config.wsUrl() == null) {
+            throw SDKErrors.newError(SDKErrors.MSG_URL_REQUIRED_OUTBOUND);
+        }
+
         log.info("Starting handler runtime and registering with workflow engine at {} provider={}",
-                config.url(), config.providerName());
+                config.wsUrl(), config.providerName());
+        if (config.tls() != null && config.tls().enabled()) {
+            outboundSslContext = PemTls.buildSslContext(config.tls(), "outbound");
+            log.info("Outbound TLS enabled clientCertificate={} caFile={}",
+                    config.tls().hasIdentity(), config.tls().caFile());
+        }
         try {
             connectWithRetry(0).get();
         } catch (ExecutionException e) {
@@ -311,9 +326,12 @@ public class HandlerRuntime implements ProxyAdapterRuntime, Closeable {
             return CompletableFuture.completedFuture(null);
         }
 
-        var httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
+        var clientBuilder = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10));
+        if (outboundSslContext != null) {
+            clientBuilder.sslContext(outboundSslContext);
+        }
+        var httpClient = clientBuilder.build();
 
         var wsBuilder = httpClient.newWebSocketBuilder();
         applyAuth(wsBuilder);
@@ -322,12 +340,12 @@ public class HandlerRuntime implements ProxyAdapterRuntime, Closeable {
         }
 
         var result = new CompletableFuture<Void>();
-        wsBuilder.buildAsync(config.url(), new Listener())
+        wsBuilder.buildAsync(config.wsUrl(), new Listener())
                 .whenComplete((ws, error) -> {
                     if (error == null) {
                         this.webSocket = ws;
                         connected.set(true);
-                        log.info("WebSocket connected to {}", config.url());
+                        log.info("WebSocket connected to {}", config.wsUrl());
                         registerProviderAndHandlers();
                         startHeartbeat();
                         result.complete(null);

@@ -47,6 +47,8 @@ public final class ConfigLoader {
 
     static final String DEFAULT_PROVIDER_CONFIG_PATH = "./config/provider-config.yaml";
 
+    private static final String STREAM_SOURCE = "(stream)";
+
     /**
      * Load client config from the file named by {@code KALEIDO_CONFIG_FILE}.
      */
@@ -62,25 +64,55 @@ public final class ConfigLoader {
      * Load client config from a YAML file.
      */
     public static ClientConfig load(Path file) {
-        try {
-            return parse(YAML_MAPPER.readTree(Files.readString(file)), file.toString());
-        } catch (IOException e) {
-            throw SDKErrors.newError(e, SDKErrors.MSG_CONFIG_FILE_INVALID, file);
-        }
+        return fromDocument(loadDocument(file), file.toString());
     }
 
     /**
      * Load client config from a YAML stream.
      */
     public static ClientConfig load(InputStream inputStream) {
+        return fromDocument(loadDocument(inputStream), STREAM_SOURCE);
+    }
+
+    /**
+     * Parse a config file into its raw tree without interpreting it.
+     *
+     * <p>For applications that keep their own settings in the same document.
+     * Pair with {@link #fromDocument} to read the file once and derive the
+     * client config from the same tree:
+     *
+     * <pre>{@code
+     * var root = ConfigLoader.loadDocument(path);
+     * var client = ConfigLoader.fromDocument(root, path.toString());
+     * var mine = root.path("my-section");
+     * }</pre>
+     */
+    public static JsonNode loadDocument(Path file) {
         try {
-            return parse(YAML_MAPPER.readTree(inputStream), "(stream)");
+            return YAML_MAPPER.readTree(Files.readString(file));
         } catch (IOException e) {
-            throw SDKErrors.newError(e, SDKErrors.MSG_CONFIG_FILE_INVALID, "(stream)");
+            throw SDKErrors.newError(e, SDKErrors.MSG_CONFIG_FILE_INVALID, file);
         }
     }
 
-    private static ClientConfig parse(JsonNode root, String source) {
+    /**
+     * As {@link #loadDocument(Path)}, from a stream.
+     */
+    public static JsonNode loadDocument(InputStream inputStream) {
+        try {
+            return YAML_MAPPER.readTree(inputStream);
+        } catch (IOException e) {
+            throw SDKErrors.newError(e, SDKErrors.MSG_CONFIG_FILE_INVALID, STREAM_SOURCE);
+        }
+    }
+
+    /**
+     * Build client config from an already-parsed config tree.
+     *
+     * @param root   the parsed document, as returned by {@link #loadDocument}
+     * @param source names the document in error messages
+     */
+    public static ClientConfig fromDocument(JsonNode root, String source) {
         if (root == null || !root.isObject()) {
             throw SDKErrors.newError(SDKErrors.MSG_CONFIG_FILE_INVALID, source);
         }
@@ -127,13 +159,18 @@ public final class ConfigLoader {
             log.warn("Unknown setupLifecycle '{}'; using default 'boot'", lifecycle);
         }
 
-        var url = section.path("url").asText("");
+        var restUrl = section.path("url").asText("");
+        var wsUrl = section.path("ws").path("url").asText("");
         var serverNode = section.path("server");
 
-        // Inbound: a "server" section with no "url" means the app creates a
-        // WebSocket server and the engine dials in, rather than the app
-        // dialing out (see ServerConfig).
-        if (url.isEmpty() && serverNode.isObject()) {
+        if (!restUrl.isEmpty()) {
+            builder.restUrl(java.net.URI.create(restUrl));
+        }
+
+        // Inbound: a "server" section with no ws.url means the app creates a
+        // WebSocket server and the engine dials in, rather than the app dialing
+        // out (see ServerConfig).
+        if (wsUrl.isEmpty() && serverNode.isObject()) {
             builder.server(parseServerConfig(serverNode));
             if (serverNode.has("heartbeatInterval")) {
                 var hbNode = serverNode.get("heartbeatInterval");
@@ -141,12 +178,25 @@ public final class ConfigLoader {
                 builder.heartbeatInterval(parseTimeString(hbValue));
             }
         } else {
-            var authNode = section.path("auth");
-            if (url.isEmpty() || !authNode.isObject()) {
-                throw SDKErrors.newError(SDKErrors.MSG_CONFIG_URL_AUTH_MISSING, source);
+            // Outbound: a websocket URL is required to dial out.
+            if (wsUrl.isEmpty()) {
+                throw SDKErrors.newError(SDKErrors.MSG_CONFIG_WS_URL_MISSING, source);
             }
-            builder.url(java.net.URI.create(httpUrlToWsUrl(url)));
-            builder.auth(parseAuth(authNode));
+            builder.wsUrl(java.net.URI.create(wsUrl));
+
+            var tls = parseTls(section.path("tls"), false);
+            if (tls != null) {
+                builder.tls(tls);
+            }
+
+            var authNode = section.path("auth");
+            if (authNode.isObject()) {
+                builder.auth(parseAuth(authNode));
+            }
+
+            if (!authNode.isObject() && (tls == null || !tls.hasIdentity())) {
+                throw SDKErrors.newError(SDKErrors.MSG_CONFIG_NO_CREDENTIALS, source);
+            }
         }
 
         builder.serviceBindings(parseServiceBindings(root, section));
@@ -158,17 +208,25 @@ public final class ConfigLoader {
     private static ServerConfig parseServerConfig(JsonNode serverNode) {
         var address = serverNode.path("address").asText(null);
         var port = serverNode.has("port") ? serverNode.get("port").asInt() : null;
-        ServerConfig.TlsConfig tls = null;
-        var tlsNode = serverNode.path("tls");
-        if (tlsNode.isObject() && tlsNode.path("enabled").asBoolean(false)) {
-            tls = new ServerConfig.TlsConfig(
-                    true,
-                    tlsNode.has("caFile") ? tlsNode.get("caFile").asText() : null,
-                    tlsNode.has("certFile") ? tlsNode.get("certFile").asText() : null,
-                    tlsNode.has("keyFile") ? tlsNode.get("keyFile").asText() : null,
-                    tlsNode.path("clientAuth").asBoolean(false));
+        return new ServerConfig(address, port, parseTls(serverNode.path("tls"), true));
+    }
+
+    /**
+     * Parses a {@code tls} block, returning null unless it is present with
+     * {@code enabled: true}. The same key names serve both directions; the
+     * direction-specific flags are read only where they apply.
+     */
+    private static TlsConfig parseTls(JsonNode tlsNode, boolean server) {
+        if (!tlsNode.isObject() || !tlsNode.path("enabled").asBoolean(false)) {
+            return null;
         }
-        return new ServerConfig(address, port, tls);
+        var caFile = tlsNode.has("caFile") ? tlsNode.get("caFile").asText() : null;
+        var certFile = tlsNode.has("certFile") ? tlsNode.get("certFile").asText() : null;
+        var keyFile = tlsNode.has("keyFile") ? tlsNode.get("keyFile").asText() : null;
+        return server
+                ? TlsConfig.forServer(caFile, certFile, keyFile, tlsNode.path("clientAuth").asBoolean(false))
+                : TlsConfig.forClient(caFile, certFile, keyFile,
+                        tlsNode.path("insecureSkipHostVerify").asBoolean(false));
     }
 
     private static Map<String, ServiceBindingConfig> parseServiceBindings(JsonNode root, JsonNode section) {
@@ -226,47 +284,6 @@ public final class ConfigLoader {
             path = System.getenv(KALEIDO_CONFIG_FILE);
         }
         return path == null || path.isBlank() ? null : path.trim();
-    }
-
-    /**
-     * Build a WebSocket URL from an HTTP(S) base URL: strips a trailing
-     * {@code /rest}, converts the scheme, and appends {@code /ws}.
-     */
-    public static String httpUrlToWsUrl(String url) {
-        var result = url;
-        if (result.endsWith("/rest")) {
-            result = result.substring(0, result.length() - 5);
-        }
-        result = result.replaceAll("/+$", "");
-        if (result.startsWith("http://")) {
-            result = "ws://" + result.substring(7);
-        } else if (result.startsWith("https://")) {
-            result = "wss://" + result.substring(8);
-        }
-        if (!result.endsWith("/ws")) {
-            result += "/ws";
-        }
-        return result;
-    }
-
-    /**
-     * Build a REST base URL from a WebSocket URL: strips a trailing {@code /ws},
-     * converts the scheme, and appends {@code /rest}.
-     */
-    public static String wsUrlToRestUrl(String wsUrl) {
-        var result = wsUrl;
-        if (result.endsWith("/ws")) {
-            result = result.substring(0, result.length() - 3);
-        }
-        if (!result.endsWith("/rest")) {
-            result += "/rest";
-        }
-        if (result.startsWith("ws://")) {
-            result = "http://" + result.substring(5);
-        } else if (result.startsWith("wss://")) {
-            result = "https://" + result.substring(6);
-        }
-        return result;
     }
 
     /**

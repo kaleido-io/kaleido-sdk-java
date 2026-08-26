@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.kaleido.workflowengine.sdk.config.AuthConfig;
 import io.kaleido.workflowengine.sdk.config.ClientConfig;
-import io.kaleido.workflowengine.sdk.config.ConfigLoader;
 
 import java.net.URI;
 import java.time.Duration;
@@ -57,6 +56,11 @@ final class TestConfig {
         return fromEnvFileOrDefault("FLOW_ENGINE_URL", "/url", "http://localhost:5503");
     }
 
+    /** WebSocket endpoint of the workflow engine's provider socket. */
+    static String flowEngineWsUrl() {
+        return fromEnvFileOrDefault("FLOW_ENGINE_WS_URL", "/ws/url", "ws://localhost:5503/ws");
+    }
+
     static String authToken() {
         return fromEnvFileOrDefault("WORKFLOW_ENGINE_AUTH_TOKEN", "/auth/token", "dev-token-123");
     }
@@ -82,7 +86,8 @@ final class TestConfig {
     /** SDK client config for a WebSocket provider connection. */
     static ClientConfig clientConfig(String providerName) {
         return ClientConfig.builder()
-                .url(URI.create(ConfigLoader.httpUrlToWsUrl(flowEngineUrl())))
+                .wsUrl(URI.create(flowEngineWsUrl()))
+                .restUrl(URI.create(flowEngineUrl()))
                 .providerName(providerName)
                 .auth(clientAuth())
                 .reconnectDelay(Duration.ofSeconds(2))

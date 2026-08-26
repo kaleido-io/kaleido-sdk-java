@@ -50,7 +50,7 @@ final class ReadmeSnippetsCompileCheck {
         var fromEnv = WorkflowEngineClient.fromConfigFile();
         var fromPath = WorkflowEngineClient.fromConfigFile(Path.of("/path/to/config.yaml"));
         var programmatic = new WorkflowEngineClient(ClientConfig.builder()
-                .url(URI.create("ws://localhost:5503/ws"))
+                .wsUrl(URI.create("ws://localhost:5503/ws"))
                 .providerName("my-service")
                 .auth(new AuthConfig.TokenAuth("your-token", "X-Kld-Authz", null))
                 .build());

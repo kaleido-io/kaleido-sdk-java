@@ -44,6 +44,11 @@ dependencies {
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
+
+    // Mints the certificates the TLS tests need; test-only, never exposed to consumers.
+    testImplementation(libs.bouncycastle.bcpkix)
+    testImplementation(libs.bouncycastle.bcprov)
+
     testRuntimeOnly(libs.slf4j.simple)
 
     "componentTestImplementation"(platform(libs.junit.bom))
