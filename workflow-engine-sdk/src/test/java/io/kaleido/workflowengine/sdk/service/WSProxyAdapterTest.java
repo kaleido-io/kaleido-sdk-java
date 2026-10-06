@@ -93,6 +93,8 @@ class WSProxyAdapterTest {
         var thrown = assertThrows(Exception.class, pending::get);
         assertTrue(thrown.getCause() instanceof CompletionWrapper);
         assertTrue(thrown.getCause().getCause().getMessage().contains("upstream failed"));
+        var proxyError = assertInstanceOf(ServiceProxyException.class, thrown.getCause().getCause());
+        assertEquals(500, proxyError.status());
     }
 
     @Test

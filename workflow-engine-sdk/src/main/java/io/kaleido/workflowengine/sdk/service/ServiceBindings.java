@@ -37,7 +37,11 @@ public final class ServiceBindings {
                 log.warn("Skipping invalid service binding: {}", name);
                 return;
             }
-            var serviceType = str(value, "type");
+            // serviceType is the current key; type is still read.
+            var serviceType = str(value, "serviceType");
+            if (serviceType.isEmpty()) {
+                serviceType = str(value, "type");
+            }
             if (serviceType.isEmpty()) {
                 serviceType = name;
             }

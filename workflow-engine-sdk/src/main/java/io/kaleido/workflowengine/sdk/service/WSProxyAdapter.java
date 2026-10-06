@@ -70,7 +70,7 @@ public class WSProxyAdapter {
             return;
         }
         if (response.error() != null && (response.status() == 0 || response.status() >= 400)) {
-            inflight.completeExceptionally(new RuntimeException("Service proxy error: " + response.error()));
+            inflight.completeExceptionally(new ServiceProxyException(response.status(), response.error()));
         } else {
             inflight.complete(response);
         }

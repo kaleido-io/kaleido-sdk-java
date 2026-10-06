@@ -13,6 +13,7 @@ import io.kaleido.workflowengine.sdk.protocol.WSEvaluateTransaction;
 import io.kaleido.workflowengine.sdk.protocol.WSEvaluateReplyResult;
 import io.kaleido.workflowengine.sdk.protocol.WSHandleTransactions;
 import io.kaleido.workflowengine.sdk.protocol.WSHandleTransactionsResult;
+import io.kaleido.workflowengine.sdk.service.ServiceClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -279,6 +280,19 @@ public final class StageDirectorHelper {
         }
     }
 
+    /**
+     * A failed call to a bound service is an expected outcome, often retried by the engine
+     * (a 5xx, or the service or provider-proxy unreachable), so it gets one line rather than a
+     * stack trace. Anything else is unexpected and logged in full.
+     */
+    private static void logFailure(String what, Exception e) {
+        if (e instanceof ServiceClientException call) {
+            log.warn("{}: {}{}", what, call.getMessage(), call.retryable() ? " (retryable)" : "");
+        } else {
+            log.error(what, e);
+        }
+    }
+
     private static <T extends WithStageDirector> WSEvaluateReplyResult execMapped(
             ActionConfig<T> config, WSEvaluateTransaction transaction, T input) {
         try {
@@ -288,7 +302,7 @@ public final class StageDirectorHelper {
             var handlerResult = config.handler().handle(transaction, input);
             return mapOutput(input.stageDirector(), transaction, handlerResult);
         } catch (Exception e) {
-            log.error("Handler execution failed", e);
+            logFailure("Handler execution failed", e);
             return WSEvaluateReplyResult.error(e.getMessage());
         }
     }
@@ -311,7 +325,7 @@ public final class StageDirectorHelper {
             }
             return mapped;
         } catch (Exception e) {
-            log.error("Batch handler execution failed", e);
+            logFailure("Batch handler execution failed", e);
             return transactions.stream()
                     .map(t -> WSEvaluateReplyResult.error(e.getMessage()))
                     .toList();

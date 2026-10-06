@@ -13,6 +13,7 @@ import io.kaleido.workflowengine.sdk.protocol.WSEvaluateTransaction;
 import io.kaleido.workflowengine.sdk.protocol.WSHandleTransactions;
 import io.kaleido.workflowengine.sdk.protocol.WSHandleTransactionsResult;
 import io.kaleido.workflowengine.sdk.protocol.WSMessageType;
+import io.kaleido.workflowengine.sdk.service.ServiceClientException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -213,6 +214,24 @@ class StageDirectorHelperTest {
 
         assertEquals(1, reply.getResults().size());
         assertEquals("next", reply.getResults().get(0).getStage());
+    }
+
+    @Test
+    void aFailedServiceCallIsReportedAsAnErrorTheEngineRetries() throws Exception {
+        var reply = new WSHandleTransactionsResult();
+        var batch = batchOf(transaction(json("""
+                {"action":"call","outputPath":"/out","nextStage":"next","failureStage":"fail"}
+                """)));
+
+        Map<String, ActionConfig<TestInput>> actions = Map.of("call", ActionConfig.parallel((txn, input) -> {
+            throw new ServiceClientException("GET /api/v1/things: HTTP 503: busy", 503, "busy", null);
+        }));
+
+        StageDirectorHelper.evalDirected(reply, batch, actions, TestInput.class);
+
+        var result = reply.getResults().get(0);
+        assertEquals("GET /api/v1/things: HTTP 503: busy", result.getError());
+        assertNull(result.getStage());
     }
 
     @Test

@@ -172,6 +172,24 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void serviceTypeIsReadFromTheKeyThePlatformWrites(@TempDir Path tempDir) throws Exception {
+        var file = write(tempDir, """
+                workflow-engine:
+                  providerName: platform-bindings
+                  ws:
+                    url: ws://localhost:5503/ws
+                  auth: {type: basic, username: u, password: p}
+                  service-bindings:
+                    workflow-engine:
+                      bindingType: hosted
+                      serviceType: WorkflowEngineService
+                      id: s:wfe1
+                """);
+
+        assertEquals("WorkflowEngineService", ConfigLoader.load(file).serviceBindings().get("workflow-engine").type());
+    }
+
+    @Test
     void serviceBindingsNestedUnderWorkflowEngine(@TempDir Path tempDir) throws Exception {
         var file = write(tempDir, """
                 workflow-engine:
