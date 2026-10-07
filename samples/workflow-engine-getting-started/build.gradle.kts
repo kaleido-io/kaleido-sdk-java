@@ -29,6 +29,7 @@ val sdkVersion = providers.gradleProperty("sdkVersion").getOrElse("v1.0.0-rc.1")
 
 dependencies {
     implementation("io.kaleido:workflow-engine-sdk:$sdkVersion")
+    implementation("io.kaleido:asset-manager-sdk:$sdkVersion")
     implementation("org.springframework.boot:spring-boot-starter")
     runtimeOnly("ch.qos.logback:logback-classic:1.5.38")
 
@@ -58,6 +59,15 @@ val componentTest by tasks.registering(Test::class) {
     classpath = sourceSets["componentTest"].runtimeClasspath
     useJUnitPlatform()
     shouldRunAfter(tasks.test)
+}
+
+// Sets up a demo asset in the Asset Manager through a service binding, outside the
+// provider: `./gradlew setupDemoAsset` with KALEIDO_CONFIG_FILE set.
+val setupDemoAsset by tasks.registering(JavaExec::class) {
+    description = "Bulk-upserts a demo asset and pool through the asset-manager service binding."
+    group = "application"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.kaleido.workflowengine.sample.SetupDemoAsset")
 }
 
 springBoot {

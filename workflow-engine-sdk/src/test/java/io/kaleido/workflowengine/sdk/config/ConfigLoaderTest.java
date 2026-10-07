@@ -4,7 +4,7 @@
 
 package io.kaleido.workflowengine.sdk.config;
 
-import io.kaleido.workflowengine.sdk.service.ServiceBindingConfig;
+import io.kaleido.sdk.core.config.ServiceBindingConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -169,6 +169,24 @@ class ConfigLoaderTest {
         assertEquals("X-Api-Key", nonHosted.auth().header());
         assertEquals(4, nonHosted.maxRetries());
         assertEquals(15000, nonHosted.timeout());
+    }
+
+    @Test
+    void serviceTypeIsReadFromTheKeyThePlatformWrites(@TempDir Path tempDir) throws Exception {
+        var file = write(tempDir, """
+                workflow-engine:
+                  providerName: platform-bindings
+                  ws:
+                    url: ws://localhost:5503/ws
+                  auth: {type: basic, username: u, password: p}
+                  service-bindings:
+                    asset-manager:
+                      bindingType: hosted
+                      serviceType: AssetManagerService
+                      id: s:am1
+                """);
+
+        assertEquals("AssetManagerService", ConfigLoader.load(file).serviceBindings().get("asset-manager").type());
     }
 
     @Test

@@ -11,7 +11,7 @@ allprojects {
     version = sdkVersion
 }
 
-val publishedModules = setOf("workflow-engine-sdk")
+val publishedModules = setOf("core-sdk", "asset-manager-sdk", "workflow-engine-sdk")
 
 subprojects {
     apply(plugin = "java-library")

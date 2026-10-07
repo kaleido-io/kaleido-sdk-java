@@ -21,8 +21,8 @@ import io.kaleido.workflowengine.sdk.handlers.Handler;
 import io.kaleido.workflowengine.sdk.handlers.TransactionHandler;
 import io.kaleido.workflowengine.sdk.protocol.ProviderCapabilities;
 import io.kaleido.workflowengine.sdk.runtime.HandlerRuntime;
-import io.kaleido.workflowengine.sdk.service.ServiceBindingConfig;
-import io.kaleido.workflowengine.sdk.service.ServiceClientOptions;
+import io.kaleido.sdk.core.config.ServiceBindingConfig;
+import io.kaleido.sdk.core.http.ServiceClientOptions;
 import io.kaleido.workflowengine.sdk.service.WSProxyAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -293,13 +293,7 @@ public class WorkflowEngineClient {
     }
 
     public ServiceClientOptions getServiceClientOptions(String name, String authRef) {
-        var binding = getServiceBinding(name);
-        return switch (binding) {
-            case ServiceBindingConfig.Hosted hosted -> new ServiceClientOptions.WsProxy(
-                    getWSProxyAdapter(), hosted.type(), hosted.id(), authRef);
-            case ServiceBindingConfig.NonHosted nonHosted -> new ServiceClientOptions.Http(
-                    nonHosted.url(), nonHosted.auth(), nonHosted.maxRetries(), nonHosted.timeout());
-        };
+        return ServiceClientOptions.forBinding(getServiceBinding(name), getWSProxyAdapter(), authRef);
     }
 
     // ── Private builder helpers ─────────────────────────────────────────────
