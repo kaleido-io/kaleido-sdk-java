@@ -4,6 +4,7 @@
 
 package io.kaleido.sdk.core.http;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.kaleido.sdk.core.JSON;
 
 import java.io.IOException;
@@ -52,6 +53,24 @@ public record ServiceResponse(int status, Map<String, String> headers, byte[] bo
             return JSON.MAPPER.readValue(body, type);
         } catch (IOException e) {
             throw new UncheckedIOException("response body is not " + type.getSimpleName() + " JSON", e);
+        }
+    }
+
+    /**
+     * The body read as JSON into a generic type, or null when the body is empty.
+     *
+     * @param type the type to read, e.g. {@code new TypeReference<List<Item>>() {}}
+     * @param <T>  the type to read
+     * @return the body, or null when empty
+     */
+    public <T> T json(TypeReference<T> type) {
+        if (body.length == 0) {
+            return null;
+        }
+        try {
+            return JSON.MAPPER.readValue(body, type);
+        } catch (IOException e) {
+            throw new UncheckedIOException("response body is not " + type.getType().getTypeName() + " JSON", e);
         }
     }
 }

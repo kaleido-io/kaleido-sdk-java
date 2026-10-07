@@ -64,12 +64,10 @@ definitions and streams bound to provider `getting-started-sample`.
 ## Call a service through a binding
 
 A service binding names a platform service the provider calls, with how to reach it.
-[`AssetManagerApi`](src/main/java/io/kaleido/workflowengine/sample/AssetManagerApi.java) is a
-typed client for the Asset Manager, built on the core SDK's `ServiceClient`, with a
-`bulkUpsert` that creates or updates assets, addresses and pools in one request.
+The sample uses the Asset Manager SDK's `AssetManagerClient`.
 [`SetupDemoAsset`](src/main/java/io/kaleido/workflowengine/sample/SetupDemoAsset.java) uses it
 without a provider: through the `asset-manager` binding in `KALEIDO_CONFIG_FILE`, it makes sure
-a demo asset, its contract address and a pool exist (`create_or_ignore`, so it is safe to run
+a demo asset, its contract address and a pool exist in one bulk upsert (`create_or_ignore`, so it is safe to run
 again), then reads the asset back. Set the binding's `url` and `auth` in
 [`wfe-config.yaml.sample`](src/main/resources/wfe-config.yaml.sample), then:
 
@@ -81,7 +79,7 @@ Inside a handler, build the same client from the connected client instead, so a 
 binding goes through the provider-proxy as the user behind the transaction:
 
 ```java
-var assets = new AssetManagerApi(client.getServiceClientOptions("asset-manager", txn.authRef()));
+var am = new AssetManagerClient(client.getServiceClientOptions("asset-manager", txn.authRef()));
 ```
 
 ## Verify

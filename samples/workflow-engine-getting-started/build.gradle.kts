@@ -29,6 +29,7 @@ val sdkVersion = providers.gradleProperty("sdkVersion").getOrElse("v1.0.0-rc.1")
 
 dependencies {
     implementation("io.kaleido:workflow-engine-sdk:$sdkVersion")
+    implementation("io.kaleido:asset-manager-sdk:$sdkVersion")
     implementation("org.springframework.boot:spring-boot-starter")
     runtimeOnly("ch.qos.logback:logback-classic:1.5.38")
 

@@ -91,6 +91,14 @@ jobs:
           destination_dir: docs/core-sdk/${{ steps.version.outputs.clean_version }}
           keep_files: true
 
+      - name: Publish Asset Manager SDK Javadoc to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./asset-manager-sdk/build/docs/javadoc
+          destination_dir: docs/asset-manager-sdk/${{ steps.version.outputs.clean_version }}
+          keep_files: true
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:

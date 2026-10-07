@@ -4,6 +4,7 @@
 
 package io.kaleido.sdk.core.http;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 
@@ -152,5 +153,14 @@ class ServiceClientTest {
         ServiceProxy proxy = (serviceType, id, authRef, method, path, headers, body) -> COUNT;
 
         assertEquals(3, new Counter(new ServiceClientOptions.WsProxy(proxy, "T", "id", null)).count());
+    }
+
+    @Test
+    void getReadsAGenericType() {
+        var counts = client(reply(200, "[{\"count\":1},{\"count\":2}]"))
+                .get("/a", Map.of("q", "x"), new TypeReference<List<Count>>() {});
+
+        assertEquals(List.of(new Count(1), new Count(2)), counts);
+        assertEquals(List.of("GET /a?q=x null"), sent);
     }
 }

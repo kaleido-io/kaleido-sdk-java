@@ -4,11 +4,13 @@
 
 package io.kaleido.sdk.core.http;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -61,5 +63,16 @@ class ServiceResponseTest {
         var error = assertThrows(UncheckedIOException.class, () -> body("not json").json(Item.class));
         assertTrue(error.getMessage().contains("not Item JSON"), error.getMessage());
         assertThrows(UncheckedIOException.class, () -> body("[1,2]").json(Item.class));
+    }
+
+    @Test
+    void theBodyReadsAsAGenericType() {
+        var items = body("[{\"id\":\"a\",\"count\":1},{\"id\":\"b\",\"count\":2}]")
+                .json(new TypeReference<List<Item>>() {});
+
+        assertEquals(List.of(new Item("a", 1), new Item("b", 2)), items);
+        assertNull(body("").json(new TypeReference<List<Item>>() {}));
+        var error = assertThrows(UncheckedIOException.class, () -> body("{}").json(new TypeReference<List<Item>>() {}));
+        assertTrue(error.getMessage().contains("java.util.List<"), error.getMessage());
     }
 }

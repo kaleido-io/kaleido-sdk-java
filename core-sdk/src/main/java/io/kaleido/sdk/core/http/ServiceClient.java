@@ -4,6 +4,8 @@
 
 package io.kaleido.sdk.core.http;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -68,6 +70,19 @@ public class ServiceClient {
      * @return the response body, or null when empty
      */
     public <T> T get(String path, Map<String, ?> params, Class<T> type) {
+        return request("GET", withQuery(path, params), null).json(type);
+    }
+
+    /**
+     * GETs {@code path} and reads the response as a generic type, such as a page of items.
+     *
+     * @param path   the path, relative to the service's base URL
+     * @param params query parameters; null values are skipped
+     * @param type   the response type, e.g. {@code new TypeReference<Page<Item>>() {}}
+     * @param <T>    the response type
+     * @return the response body, or null when empty
+     */
+    public <T> T get(String path, Map<String, ?> params, TypeReference<T> type) {
         return request("GET", withQuery(path, params), null).json(type);
     }
 
