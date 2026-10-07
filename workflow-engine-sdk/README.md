@@ -130,7 +130,9 @@ status outside 2xx throws `ServiceClientException`, whose `status()` and `retrya
 failure. A non-hosted binding retries up to its `maxRetries`, with `timeout` in
 milliseconds: a 429 or a refused connection always, and a 5xx or a lost response only for
 idempotent methods, so a POST or PATCH is never sent twice. Response header names are
-case-insensitive. Extend `ServiceClient` for a typed client of one service.
+case-insensitive. Extend `ServiceClient` for a typed client of one service. `ServiceClient` and the binding
+types come from [`core-sdk`](../core-sdk/README.md) (`io.kaleido.sdk.core.http` and `io.kaleido.sdk.core.config`),
+which this module depends on.
 
 ### Handler factories
 

@@ -4,6 +4,7 @@
 
 package io.kaleido.workflowengine.sdk.service;
 
+import io.kaleido.sdk.core.http.ServiceProxyException;
 import io.kaleido.workflowengine.sdk.protocol.WSMessageType;
 import org.junit.jupiter.api.Test;
 

@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package io.kaleido.workflowengine.sdk.service;
+package io.kaleido.sdk.core.http;
 
-import io.kaleido.workflowengine.sdk.protocol.JSON;
+import io.kaleido.sdk.core.JSON;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * A response from a service binding.
+ * A response from a service called through {@link ServiceClient}.
  *
  * @param status  the HTTP status
  * @param headers the response headers, read-only, with case-insensitive names

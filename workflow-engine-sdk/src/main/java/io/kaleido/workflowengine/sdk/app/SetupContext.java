@@ -7,7 +7,7 @@ package io.kaleido.workflowengine.sdk.app;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.kaleido.workflowengine.sdk.handlers.CancellationSignal;
 import io.kaleido.workflowengine.sdk.protocol.JSON;
-import io.kaleido.workflowengine.sdk.service.ServiceClientOptions;
+import io.kaleido.sdk.core.http.ServiceClientOptions;
 
 import java.util.function.Function;
 

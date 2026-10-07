@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package io.kaleido.workflowengine.sdk.service;
+package io.kaleido.sdk.core.http;
 
-import io.kaleido.workflowengine.sdk.protocol.JSON;
+import io.kaleido.sdk.core.JSON;
 
 import java.io.IOException;
 import java.net.ConnectException;
@@ -20,10 +20,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Sends requests for a non-hosted binding straight to its URL with its configured auth,
- * retrying up to the binding's {@code maxRetries}: a 429 or a connection that never opened,
- * and for idempotent methods also a 5xx or no response. A POST or PATCH that may have
- * reached the service is not sent again.
+ * Sends requests straight to the options' URL with their auth, retrying up to
+ * {@code maxRetries}: a 429 or a connection that never opened, and for idempotent methods
+ * also a 5xx or no response. A POST or PATCH that may have reached the service is not sent
+ * again.
  */
 final class HttpServiceTransport implements ServiceTransport {
 
@@ -64,8 +64,14 @@ final class HttpServiceTransport implements ServiceTransport {
                 throw new ServiceClientException(method + " " + path + " interrupted", 0, null, e);
             }
             sleep(delay);
-            delay = delay.multipliedBy(2).compareTo(MAX_RETRY_DELAY) > 0 ? MAX_RETRY_DELAY : delay.multipliedBy(2);
+            delay = nextDelay(delay);
         }
+    }
+
+    /** Doubles the delay between attempts, up to {@code MAX_RETRY_DELAY}. */
+    static Duration nextDelay(Duration delay) {
+        var doubled = delay.multipliedBy(2);
+        return doubled.compareTo(MAX_RETRY_DELAY) > 0 ? MAX_RETRY_DELAY : doubled;
     }
 
     private HttpRequest request(String method, String path, Object body) {

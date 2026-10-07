@@ -60,6 +60,16 @@ val componentTest by tasks.registering(Test::class) {
     shouldRunAfter(tasks.test)
 }
 
+// Calls the Asset Manager through a service binding, outside the provider:
+// `./gradlew checkAssetManager [-Passet=<name>]` with KALEIDO_CONFIG_FILE set.
+val checkAssetManager by tasks.registering(JavaExec::class) {
+    description = "Calls the Asset Manager through the asset-manager service binding."
+    group = "application"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.kaleido.workflowengine.sample.CheckAssetManager")
+    args(providers.gradleProperty("asset").getOrElse(""))
+}
+
 springBoot {
     mainClass.set("io.kaleido.workflowengine.sample.SampleProviderApp")
 }

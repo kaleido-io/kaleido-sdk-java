@@ -13,9 +13,9 @@ import io.kaleido.workflowengine.sdk.handlers.RequestContext;
 import io.kaleido.workflowengine.sdk.handlers.TransactionHandler;
 import io.kaleido.workflowengine.sdk.protocol.WSHandleTransactions;
 import io.kaleido.workflowengine.sdk.protocol.WSHandleTransactionsResult;
-import io.kaleido.workflowengine.sdk.service.ServiceBindingAuth;
-import io.kaleido.workflowengine.sdk.service.ServiceBindingConfig;
-import io.kaleido.workflowengine.sdk.service.ServiceClientOptions;
+import io.kaleido.sdk.core.config.ServiceBindingAuth;
+import io.kaleido.sdk.core.config.ServiceBindingConfig;
+import io.kaleido.sdk.core.http.ServiceClientOptions;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

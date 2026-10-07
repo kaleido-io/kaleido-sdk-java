@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package io.kaleido.workflowengine.sdk.service;
+package io.kaleido.sdk.core.http;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -11,10 +11,10 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Calls a bound service with JSON bodies, whichever way the binding reaches it: a hosted
- * binding through the provider-proxy over the provider's WebSocket, as the user behind
- * the request's {@code authRef}; a non-hosted one straight to its URL with its configured
- * auth. Swapping one for the other needs no code change.
+ * Calls a service with JSON bodies, however its {@link ServiceClientOptions} reach it:
+ * straight to a URL with its auth, or, for a hosted binding, through the provider-proxy over
+ * the provider's WebSocket as the user behind the request's {@code authRef}. Swapping one
+ * for the other needs no code change.
  *
  * <p>Use it directly, or extend it into a typed client for one service:
  *
@@ -28,7 +28,7 @@ import java.util.Optional;
  * var assets = new AssetManagerClient(client.getServiceClientOptions("asset-manager", tx.authRef()));
  * }</pre>
  *
- * <p>Paths are relative to the binding's base URL. A status other than 2xx throws
+ * <p>Paths are relative to the service's base URL. A status other than 2xx throws
  * {@link ServiceClientException}.
  */
 public class ServiceClient {
@@ -49,7 +49,7 @@ public class ServiceClient {
     /**
      * GETs {@code path} and reads the response as {@code type}.
      *
-     * @param path the path, relative to the binding's base URL
+     * @param path the path, relative to the service's base URL
      * @param type the response type, e.g. a record, {@code JsonNode} or {@code Map}
      * @param <T>  the response type
      * @return the response body, or null when empty
@@ -61,7 +61,7 @@ public class ServiceClient {
     /**
      * GETs {@code path} with query {@code params} (an {@code Iterable} value repeats the key).
      *
-     * @param path   the path, relative to the binding's base URL
+     * @param path   the path, relative to the service's base URL
      * @param params query parameters; null values are skipped
      * @param type   the response type
      * @param <T>    the response type
@@ -74,7 +74,7 @@ public class ServiceClient {
     /**
      * GETs {@code path}, with a 404 as empty rather than an error.
      *
-     * @param path   the path, relative to the binding's base URL
+     * @param path   the path, relative to the service's base URL
      * @param params query parameters; null values are skipped
      * @param type   the response type
      * @param <T>    the response type
@@ -91,7 +91,7 @@ public class ServiceClient {
     /**
      * POSTs {@code body} as JSON.
      *
-     * @param path the path, relative to the binding's base URL
+     * @param path the path, relative to the service's base URL
      * @param body the request body, or null for none
      * @param type the response type ({@code Void.class} to ignore it)
      * @param <T>  the response type
@@ -104,7 +104,7 @@ public class ServiceClient {
     /**
      * PUTs {@code body} as JSON.
      *
-     * @param path the path, relative to the binding's base URL
+     * @param path the path, relative to the service's base URL
      * @param body the request body, or null for none
      * @param type the response type ({@code Void.class} to ignore it)
      * @param <T>  the response type
@@ -117,7 +117,7 @@ public class ServiceClient {
     /**
      * PATCHes {@code body} as JSON.
      *
-     * @param path the path, relative to the binding's base URL
+     * @param path the path, relative to the service's base URL
      * @param body the request body, or null for none
      * @param type the response type ({@code Void.class} to ignore it)
      * @param <T>  the response type
@@ -130,7 +130,7 @@ public class ServiceClient {
     /**
      * DELETEs {@code path}.
      *
-     * @param path the path, relative to the binding's base URL
+     * @param path the path, relative to the service's base URL
      */
     public void delete(String path) {
         request("DELETE", path, null);
@@ -140,7 +140,7 @@ public class ServiceClient {
      * Sends any request, for a method or response handling the helpers do not cover.
      *
      * @param method the HTTP method
-     * @param path   the path and query, relative to the binding's base URL
+     * @param path   the path and query, relative to the service's base URL
      * @param body   the JSON body, or null for none
      * @return the response, whose status is 2xx
      */

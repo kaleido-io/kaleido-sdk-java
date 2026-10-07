@@ -2,17 +2,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package io.kaleido.workflowengine.sdk.service;
+package io.kaleido.sdk.core.http;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
-import java.util.Base64;
 import java.util.Map;
 
 /**
- * Sends requests for a hosted binding as service proxy messages over the provider's
- * WebSocket. The provider-proxy makes the call, as the user behind the request's
- * {@code authRef}.
+ * Sends requests for a hosted binding through a {@link ServiceProxy}. The provider-proxy
+ * makes the call, as the user behind the request's {@code authRef}.
  */
 final class WsProxyServiceTransport implements ServiceTransport {
 
@@ -26,11 +24,8 @@ final class WsProxyServiceTransport implements ServiceTransport {
     public ServiceResponse send(String method, String path, Object body) {
         var headers = body == null ? Map.<String, String>of() : Map.of("Content-Type", "application/json");
         try {
-            var response = options.wsProxy().request(options.serviceType(), method, options.id(), body, headers, path,
-                    options.authRef());
-            var bytes = response.bodyBase64() == null ? new byte[0] : Base64.getDecoder().decode(response.bodyBase64());
-            return new ServiceResponse(response.status(), response.headers() == null ? Map.of() : response.headers(),
-                    bytes);
+            return options.wsProxy().send(options.serviceType(), options.id(), options.authRef(), method, path,
+                    headers, body);
         } catch (ServiceProxyException e) {
             throw new ServiceClientException(method + " " + path + ": " + e.getMessage(), e.status(), null, e);
         } catch (JsonProcessingException e) {

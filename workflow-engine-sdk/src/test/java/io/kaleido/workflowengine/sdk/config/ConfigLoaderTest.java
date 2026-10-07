@@ -4,7 +4,7 @@
 
 package io.kaleido.workflowengine.sdk.config;
 
-import io.kaleido.workflowengine.sdk.service.ServiceBindingConfig;
+import io.kaleido.sdk.core.config.ServiceBindingConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -180,13 +180,13 @@ class ConfigLoaderTest {
                     url: ws://localhost:5503/ws
                   auth: {type: basic, username: u, password: p}
                   service-bindings:
-                    workflow-engine:
+                    asset-manager:
                       bindingType: hosted
-                      serviceType: WorkflowEngineService
-                      id: s:wfe1
+                      serviceType: AssetManagerService
+                      id: s:am1
                 """);
 
-        assertEquals("WorkflowEngineService", ConfigLoader.load(file).serviceBindings().get("workflow-engine").type());
+        assertEquals("AssetManagerService", ConfigLoader.load(file).serviceBindings().get("asset-manager").type());
     }
 
     @Test

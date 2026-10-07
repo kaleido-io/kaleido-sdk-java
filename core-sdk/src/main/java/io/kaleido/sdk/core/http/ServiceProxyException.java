@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package io.kaleido.workflowengine.sdk.service;
+package io.kaleido.sdk.core.http;
 
 /**
  * The provider-proxy answered a service proxy request with an error: a 4xx or 5xx

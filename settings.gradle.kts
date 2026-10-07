@@ -14,4 +14,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "kaleido-sdk-java"
 
+include("core-sdk")
 include("workflow-engine-sdk")

@@ -36,6 +36,7 @@ dependencies {
     api(platform(libs.jackson.bom))
     api(libs.jackson.databind)
     api(libs.jackson.annotations)
+    api(project(":core-sdk"))
     implementation(libs.jackson.dataformat.yaml)
     implementation(libs.jackson.module.parameter.names)
     implementation(libs.zjsonpatch)

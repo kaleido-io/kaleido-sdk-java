@@ -9,6 +9,8 @@ programming model.
 
 ## Modules
 
+- [`core-sdk`](./core-sdk/README.md) — connectivity shared by the other modules: service
+  bindings and `ServiceClient`, the base for typed service clients.
 - [`workflow-engine-sdk`](./workflow-engine-sdk/README.md) — build workflow engine
   providers: transaction handlers, event sources, and event processors.
 
@@ -46,6 +48,9 @@ dependencies {
 }
 ```
 
+`workflow-engine-sdk` brings in `core-sdk`. An application that only calls platform
+services can depend on `io.kaleido:core-sdk` alone.
+
 ### Maven
 
 ```xml
@@ -81,7 +86,8 @@ Releases are cut by the [Release workflow](.github/workflows/release.yaml), trig
 
 1. Builds and tests the SDK with the supplied version.
 2. Publishes the Maven artifacts (jar + sources + javadoc + POM) to GitHub Packages.
-3. Publishes Javadoc to the `gh-pages` branch under `docs/<version>/`.
+3. Publishes Javadoc to the `gh-pages` branch: the workflow engine SDK under
+   `docs/<version>/`, the core SDK under `docs/core-sdk/<version>/`.
 4. Creates a GitHub Release with tag `v<version>` and auto-generated release notes.
 
 The `sdkVersion` input drives everything; a leading `v` is stripped automatically, so
@@ -94,7 +100,8 @@ derive from it.
 1. Go to **Actions → Kaleido Workflow Engine Java SDK Release → Run workflow**.
 2. Set `sdk_version` (e.g. `v0.1.0-rc.1`)
 3. Tick `prerelease` (if this is a pre-release)
-4. Run. This publishes `io.kaleido:workflow-engine-sdk:0.1.0-rc.1` and tags `v0.1.0-rc.1`.
+4. Run. This publishes `io.kaleido:core-sdk:0.1.0-rc.1` and
+   `io.kaleido:workflow-engine-sdk:0.1.0-rc.1`, and tags `v0.1.0-rc.1`.
 
 ## CI
 

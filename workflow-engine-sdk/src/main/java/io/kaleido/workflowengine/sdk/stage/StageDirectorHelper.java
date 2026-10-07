@@ -13,7 +13,7 @@ import io.kaleido.workflowengine.sdk.protocol.WSEvaluateTransaction;
 import io.kaleido.workflowengine.sdk.protocol.WSEvaluateReplyResult;
 import io.kaleido.workflowengine.sdk.protocol.WSHandleTransactions;
 import io.kaleido.workflowengine.sdk.protocol.WSHandleTransactionsResult;
-import io.kaleido.workflowengine.sdk.service.ServiceClientException;
+import io.kaleido.sdk.core.http.ServiceClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

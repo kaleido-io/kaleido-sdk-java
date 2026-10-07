@@ -5,8 +5,8 @@
 package io.kaleido.workflowengine.sdk.provider;
 
 import io.kaleido.workflowengine.sdk.handlers.EventProcessor;
-import io.kaleido.workflowengine.sdk.service.ServiceClient;
-import io.kaleido.workflowengine.sdk.service.ServiceClientOptions;
+import io.kaleido.sdk.core.http.ServiceClient;
+import io.kaleido.sdk.core.http.ServiceClientOptions;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;

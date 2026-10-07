@@ -75,12 +75,20 @@ jobs:
       - name: Generate Javadoc
         run: ./gradlew javadoc -PsdkVersion=${{ steps.version.outputs.clean_version }}
 
-      - name: Publish Javadoc to gh-pages
+      - name: Publish workflow engine SDK Javadoc to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./workflow-engine-sdk/build/docs/javadoc
           destination_dir: docs/${{ steps.version.outputs.clean_version }}
+          keep_files: true
+
+      - name: Publish core SDK Javadoc to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./core-sdk/build/docs/javadoc
+          destination_dir: docs/core-sdk/${{ steps.version.outputs.clean_version }}
           keep_files: true
 
       - name: Create GitHub Release
