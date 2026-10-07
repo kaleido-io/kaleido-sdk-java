@@ -132,6 +132,33 @@ milliseconds: a 429 or a refused connection always, and a 5xx or a lost response
 idempotent methods, so a POST or PATCH is never sent twice. Response header names are
 case-insensitive. Extend `ServiceClient` for a typed client of one service.
 
+### Handler factories
+
+A runtime that loads handlers by class name, for example from JARs listed in its config,
+creates each one through a `HandlerFactory`, giving it a `HandlerContext`: the name it is
+registered under, its own config, secrets and files, and the provider's service bindings.
+
+```java
+public class PaymentsFactory implements HandlerFactory<TransactionHandler> {
+    record Config(String currency, int maxAmount) {}
+
+    public TransactionHandler create(HandlerContext ctx) {
+        var config = ctx.config(Config.class);
+        return TransactionHandlerFactory.createTransactionHandler(ctx.name(), Input.class,
+                Map.of("pay", ActionConfig.parallel((tx, in) ->
+                        pay(config, ctx.serviceClient("asset-manager", tx.authRef()), in))));
+    }
+}
+```
+
+`create` runs once per configured handler, so one factory can serve several handlers with
+different config. Throwing from it stops the runtime at startup, so validate config there.
+`ctx.config(Config.class)` already rejects unknown keys and missing primitives.
+
+Secrets and files are kept out of the config: the runtime supplies them separately.
+`ctx.secret("dbPassword")` returns a secret's value and `ctx.file("truststore.p12")` a file's
+path. Both throw when the handler has no entry by that name.
+
 ### Endpoints
 
 `ws.url` is the WebSocket endpoint and `url` is the REST API base. They are
