@@ -65,13 +65,16 @@ definitions and streams bound to provider `getting-started-sample`.
 
 A service binding names a platform service the provider calls, with how to reach it.
 [`AssetManagerApi`](src/main/java/io/kaleido/workflowengine/sample/AssetManagerApi.java) is a
-typed client for the Asset Manager, built on the core SDK's `ServiceClient`.
-[`CheckAssetManager`](src/main/java/io/kaleido/workflowengine/sample/CheckAssetManager.java)
-uses it without a provider, through the `asset-manager` binding in `KALEIDO_CONFIG_FILE`
-(set its `url` and `auth` in [`wfe-config.yaml.sample`](src/main/resources/wfe-config.yaml.sample)):
+typed client for the Asset Manager, built on the core SDK's `ServiceClient`, with a
+`bulkUpsert` that creates or updates assets, addresses and pools in one request.
+[`SetupDemoAsset`](src/main/java/io/kaleido/workflowengine/sample/SetupDemoAsset.java) uses it
+without a provider: through the `asset-manager` binding in `KALEIDO_CONFIG_FILE`, it makes sure
+a demo asset, its contract address and a pool exist (`create_or_ignore`, so it is safe to run
+again), then reads the asset back. Set the binding's `url` and `auth` in
+[`wfe-config.yaml.sample`](src/main/resources/wfe-config.yaml.sample), then:
 
 ```bash
-KALEIDO_CONFIG_FILE=/tmp/wfe-config.yaml ./gradlew -PsdkIncludeBuild=true checkAssetManager -Passet=<name>
+KALEIDO_CONFIG_FILE=/tmp/wfe-config.yaml ./gradlew -PsdkIncludeBuild=true setupDemoAsset
 ```
 
 Inside a handler, build the same client from the connected client instead, so a hosted

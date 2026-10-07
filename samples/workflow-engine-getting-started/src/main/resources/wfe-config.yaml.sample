@@ -7,7 +7,7 @@ workflow-engine:
     header: X-Kld-Authz
     scheme: ""
 
-# Platform services this provider calls, by name (see CheckAssetManager). A non-hosted
+# Platform services this provider calls, by name (see SetupDemoAsset). A non-hosted
 # binding has a URL and auth.
 service-bindings:
   asset-manager:

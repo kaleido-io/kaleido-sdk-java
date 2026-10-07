@@ -60,14 +60,13 @@ val componentTest by tasks.registering(Test::class) {
     shouldRunAfter(tasks.test)
 }
 
-// Calls the Asset Manager through a service binding, outside the provider:
-// `./gradlew checkAssetManager [-Passet=<name>]` with KALEIDO_CONFIG_FILE set.
-val checkAssetManager by tasks.registering(JavaExec::class) {
-    description = "Calls the Asset Manager through the asset-manager service binding."
+// Sets up a demo asset in the Asset Manager through a service binding, outside the
+// provider: `./gradlew setupDemoAsset` with KALEIDO_CONFIG_FILE set.
+val setupDemoAsset by tasks.registering(JavaExec::class) {
+    description = "Bulk-upserts a demo asset and pool through the asset-manager service binding."
     group = "application"
     classpath = sourceSets.main.get().runtimeClasspath
-    mainClass.set("io.kaleido.workflowengine.sample.CheckAssetManager")
-    args(providers.gradleProperty("asset").getOrElse(""))
+    mainClass.set("io.kaleido.workflowengine.sample.SetupDemoAsset")
 }
 
 springBoot {
