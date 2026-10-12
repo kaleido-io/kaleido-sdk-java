@@ -40,7 +40,6 @@ on:
 
 jobs:
   publish:
-    if: github.event.sender.permissions.admin == true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
