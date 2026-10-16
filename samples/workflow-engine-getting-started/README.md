@@ -61,6 +61,27 @@ HandlerRuntime : Registering provider and handlers provider=getting-started-samp
 Once connected, `hello` and `echo` can be referenced from workflow
 definitions and streams bound to provider `getting-started-sample`.
 
+## Call a service through a binding
+
+A service binding names a platform service the provider calls, with how to reach it.
+The sample uses the Asset Manager SDK's `AssetManagerClient`.
+[`SetupDemoAsset`](src/main/java/io/kaleido/workflowengine/sample/SetupDemoAsset.java) uses it
+without a provider: through the `asset-manager` binding in `KALEIDO_CONFIG_FILE`, it makes sure
+a demo asset, its contract address and a pool exist in one bulk upsert (`create_or_ignore`, so it is safe to run
+again), then reads the asset back. Set the binding's `url` and `auth` in
+[`wfe-config.yaml.sample`](src/main/resources/wfe-config.yaml.sample), then:
+
+```bash
+KALEIDO_CONFIG_FILE=/tmp/wfe-config.yaml ./gradlew -PsdkIncludeBuild=true setupDemoAsset
+```
+
+Inside a handler, build the same client from the connected client instead, so a hosted
+binding goes through the provider-proxy as the user behind the transaction:
+
+```java
+var am = new AssetManagerClient(client.getServiceClientOptions("asset-manager", txn.authRef()));
+```
+
 ## Verify
 
 `src/componentTest` proves the two handlers actually work against a live

@@ -4,6 +4,7 @@
 
 package io.kaleido.workflowengine.sdk.service;
 
+import io.kaleido.sdk.core.http.ServiceProxyException;
 import io.kaleido.workflowengine.sdk.protocol.WSMessageType;
 import org.junit.jupiter.api.Test;
 
@@ -93,6 +94,8 @@ class WSProxyAdapterTest {
         var thrown = assertThrows(Exception.class, pending::get);
         assertTrue(thrown.getCause() instanceof CompletionWrapper);
         assertTrue(thrown.getCause().getCause().getMessage().contains("upstream failed"));
+        var proxyError = assertInstanceOf(ServiceProxyException.class, thrown.getCause().getCause());
+        assertEquals(500, proxyError.status());
     }
 
     @Test

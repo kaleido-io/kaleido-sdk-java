@@ -90,7 +90,7 @@ workflow-engine:
 
 service-bindings:
   asset-manager:
-    type: asset-manager
+    serviceType: asset-manager
     bindingType: non-hosted
     url: https://am.example.com/api/v1
     auth:
@@ -100,7 +100,7 @@ service-bindings:
 
   # Hosted binding example (resolved via the ws-proxy transport)
   evm-connector:
-    type: connector
+    serviceType: connector
     bindingType: hosted
     id: svc-connector-001
 ```
@@ -109,6 +109,57 @@ A service binding maps a name to a service's connection information. Swapping a
 binding between `non-hosted` (you supply URL and auth) and `hosted` (the
 platform resolves the instance through the provider proxy) requires no code
 change, so the same provider runs locally and hosted.
+
+### Calling bound services
+
+`ServiceClient` calls a bound service with JSON bodies. Give it the options for a
+binding and the request's `authRef`, so a hosted call runs as the user behind the
+request:
+
+```java
+record Asset(String id, String name) {}
+
+var assets = new ServiceClient(client.getServiceClientOptions("asset-manager", transaction.authRef()));
+Asset asset = assets.get("/assets/" + id, Asset.class);
+assets.post("/assets", Map.of("name", "bond"), Void.class);
+```
+
+Paths are relative to the binding's base URL. `find` reads a 404 as empty. Any other
+status outside 2xx throws `ServiceClientException`, whose `status()` and `retryable()`
+(no response, 429 or 5xx) let a handler choose between a transient error and a hard
+failure. A non-hosted binding retries up to its `maxRetries`, with `timeout` in
+milliseconds: a 429 or a refused connection always, and a 5xx or a lost response only for
+idempotent methods, so a POST or PATCH is never sent twice. Response header names are
+case-insensitive. Extend `ServiceClient` for a typed client of one service. `ServiceClient` and the binding
+types come from [`core-sdk`](../core-sdk/README.md) (`io.kaleido.sdk.core.http` and `io.kaleido.sdk.core.config`),
+which this module depends on.
+
+### Handler factories
+
+A runtime that loads handlers by class name, for example from JARs listed in its config,
+creates each one through a `HandlerFactory`, giving it a `HandlerContext`: the name it is
+registered under, its own config, secrets and files, and the provider's service bindings.
+
+```java
+public class PaymentsFactory implements HandlerFactory<TransactionHandler> {
+    record Config(String currency, int maxAmount) {}
+
+    public TransactionHandler create(HandlerContext ctx) {
+        var config = ctx.config(Config.class);
+        return TransactionHandlerFactory.createTransactionHandler(ctx.name(), Input.class,
+                Map.of("pay", ActionConfig.parallel((tx, in) ->
+                        pay(config, ctx.serviceClient("asset-manager", tx.authRef()), in))));
+    }
+}
+```
+
+`create` runs once per configured handler, so one factory can serve several handlers with
+different config. Throwing from it stops the runtime at startup, so validate config there.
+`ctx.config(Config.class)` already rejects unknown keys and missing primitives.
+
+Secrets and files are kept out of the config: the runtime supplies them separately.
+`ctx.secret("dbPassword")` returns a secret's value and `ctx.file("truststore.p12")` a file's
+path. Both throw when the handler has no entry by that name.
 
 ### Endpoints
 

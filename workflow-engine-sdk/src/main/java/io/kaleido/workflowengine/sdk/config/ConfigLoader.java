@@ -8,8 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.kaleido.workflowengine.sdk.errors.SDKErrors;
-import io.kaleido.workflowengine.sdk.service.ServiceBindingConfig;
-import io.kaleido.workflowengine.sdk.service.ServiceBindings;
+import io.kaleido.sdk.core.config.ServiceBindings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +17,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -199,7 +197,7 @@ public final class ConfigLoader {
             }
         }
 
-        builder.serviceBindings(parseServiceBindings(root, section));
+        builder.serviceBindings(ServiceBindings.fromDocument(root));
         builder.customConfig(resolveCustomConfig(root));
 
         return builder.build();
@@ -227,13 +225,6 @@ public final class ConfigLoader {
                 ? TlsConfig.forServer(caFile, certFile, keyFile, tlsNode.path("clientAuth").asBoolean(false))
                 : TlsConfig.forClient(caFile, certFile, keyFile,
                         tlsNode.path("insecureSkipHostVerify").asBoolean(false));
-    }
-
-    private static Map<String, ServiceBindingConfig> parseServiceBindings(JsonNode root, JsonNode section) {
-        var bindingsSection = root.has("service-bindings")
-                ? root.get("service-bindings")
-                : section.get("service-bindings");
-        return ServiceBindings.parseSection(bindingsSection);
     }
 
     private static AuthConfig parseAuth(JsonNode auth) {

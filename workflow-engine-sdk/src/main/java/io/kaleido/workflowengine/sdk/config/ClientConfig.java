@@ -5,7 +5,7 @@
 package io.kaleido.workflowengine.sdk.config;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.kaleido.workflowengine.sdk.service.ServiceBindingConfig;
+import io.kaleido.sdk.core.config.ServiceBindingConfig;
 
 import java.net.URI;
 import java.time.Duration;
