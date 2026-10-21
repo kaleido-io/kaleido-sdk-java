@@ -53,6 +53,8 @@ dependencies {
 `workflow-engine-sdk` brings in `core-sdk`. An application that only calls platform
 services can depend on `io.kaleido:core-sdk` alone.
 
+Upgrading from a release candidate? [UPGRADING.md](./UPGRADING.md) lists what moved.
+
 ### Maven
 
 ```xml
