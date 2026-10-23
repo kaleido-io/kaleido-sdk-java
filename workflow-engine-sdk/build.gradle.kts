@@ -4,12 +4,13 @@ plugins {
 
 val generateVersionProperties by tasks.registering {
     val outputDir = layout.buildDirectory.dir("generated/resources/version")
-    inputs.property("sdkVersion", project.version.toString())
+    val sdkVersion = project.version.toString()
+    inputs.property("sdkVersion", sdkVersion)
     outputs.dir(outputDir)
     doLast {
         val dir = outputDir.get().asFile.resolve("META-INF/kaleido-workflow-engine-sdk")
         dir.mkdirs()
-        dir.resolve("version.properties").writeText("version=${project.version}\n")
+        dir.resolve("version.properties").writeText("version=$sdkVersion\n")
     }
 }
 
@@ -36,6 +37,7 @@ dependencies {
     api(platform(libs.jackson.bom))
     api(libs.jackson.databind)
     api(libs.jackson.annotations)
+    api(project(":core-sdk"))
     implementation(libs.jackson.dataformat.yaml)
     implementation(libs.jackson.module.parameter.names)
     implementation(libs.zjsonpatch)

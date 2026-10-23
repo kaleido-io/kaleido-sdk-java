@@ -6,3 +6,15 @@ workflow-engine:
     token: dev-token-123
     header: X-Kld-Authz
     scheme: ""
+
+# Platform services this provider calls, by name (see SetupDemoAsset). A non-hosted
+# binding has a URL and auth.
+service-bindings:
+  asset-manager:
+    bindingType: non-hosted
+    serviceType: AssetManagerService
+    url: https://my-account.my-kaleido.io/endpoint/my-environment/my-asset-manager/rest
+    auth:
+      type: basic
+      username: my-api-key-name
+      password: my-api-key

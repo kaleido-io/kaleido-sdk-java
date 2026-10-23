@@ -29,6 +29,8 @@ if (sdkIncludeBuild) {
     includeBuild("../..") {
         dependencySubstitution {
             substitute(module("io.kaleido:workflow-engine-sdk")).using(project(":workflow-engine-sdk"))
+            substitute(module("io.kaleido:core-sdk")).using(project(":core-sdk"))
+            substitute(module("io.kaleido:asset-manager-sdk")).using(project(":asset-manager-sdk"))
         }
     }
 }

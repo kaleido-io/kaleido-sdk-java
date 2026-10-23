@@ -5,6 +5,9 @@
 package io.kaleido.workflowengine.sdk.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.kaleido.sdk.core.http.ServiceProxy;
+import io.kaleido.sdk.core.http.ServiceProxyException;
+import io.kaleido.sdk.core.http.ServiceResponse;
 import io.kaleido.workflowengine.sdk.protocol.JSON;
 import io.kaleido.workflowengine.sdk.protocol.WSMessageType;
 import org.slf4j.Logger;
@@ -33,7 +36,7 @@ import java.util.concurrent.TimeoutException;
  *   <li>SERVICE_PROXY_RESPONSE messages are routed here by the runtime's message loop</li>
  * </ul>
  */
-public class WSProxyAdapter {
+public class WSProxyAdapter implements ServiceProxy {
 
     private static final Logger log = LoggerFactory.getLogger(WSProxyAdapter.class);
 
@@ -70,7 +73,7 @@ public class WSProxyAdapter {
             return;
         }
         if (response.error() != null && (response.status() == 0 || response.status() >= 400)) {
-            inflight.completeExceptionally(new RuntimeException("Service proxy error: " + response.error()));
+            inflight.completeExceptionally(new ServiceProxyException(response.status(), response.error()));
         } else {
             inflight.complete(response);
         }
@@ -125,6 +128,14 @@ public class WSProxyAdapter {
         } finally {
             inflightRequests.remove(requestId);
         }
+    }
+
+    @Override
+    public ServiceResponse send(String serviceType, String id, String authRef, String method, String path,
+            Map<String, String> headers, Object body) throws Exception {
+        var response = request(serviceType, method, id, body, headers, path, authRef);
+        var bytes = response.bodyBase64() == null ? new byte[0] : Base64.getDecoder().decode(response.bodyBase64());
+        return new ServiceResponse(response.status(), response.headers(), bytes);
     }
 
     /**

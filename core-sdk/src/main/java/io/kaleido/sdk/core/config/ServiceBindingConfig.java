@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package io.kaleido.workflowengine.sdk.service;
+package io.kaleido.sdk.core.config;
 
 /**
  * Configuration for a single named service binding.
