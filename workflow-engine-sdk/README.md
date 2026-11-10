@@ -315,6 +315,24 @@ Notes:
 - For full control, implement the `TransactionHandler` interface directly: it
   receives a `RequestContext`, the mutable result to populate, and the batch.
 
+### Result durability
+
+The engine writes handler action results to the database in batches, without
+blocking the next stage. If the runtime is forcefully terminated, results not
+yet written are lost, and the handler actions run again from the last written
+state.
+
+Call `withFlush()` on a handler action's result when the result must be crash
+fault tolerant: losing it and running the action again would cause unexpected
+behavior. For example, an action that records a transaction hash before
+broadcast must flush, or a crash can leave a broadcast transaction with no
+record of its hash. With `withFlush()`, the transaction waits until the
+result, along with any previous results, is written before it continues.
+
+```java
+return ActionResult.complete().withOutput(Map.of("txHash", hash)).withFlush();
+```
+
 ### EngineAPI
 
 Handlers can call back into the workflow engine to submit new transactions.

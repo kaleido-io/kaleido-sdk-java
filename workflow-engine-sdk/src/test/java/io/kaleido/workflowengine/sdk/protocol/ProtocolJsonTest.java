@@ -64,6 +64,11 @@ class ProtocolJsonTest {
         assertTrue(json.contains("\"handle_transactions_result\""));
         assertTrue(json.contains("\"next-stage\""));
         assertTrue(json.contains("\"replace\""));
+        assertFalse(json.contains("\"flush\""));
+
+        reply.setFlush(true);
+        assertTrue(JSON.MAPPER.writeValueAsString(result).contains("\"flush\":true"));
+        reply.setFlush(null);
 
         var parsed = JSON.MAPPER.readValue(json, WSHandleTransactionsResult.class);
         assertEquals("batch-1", parsed.getId());

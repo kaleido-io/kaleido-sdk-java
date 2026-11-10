@@ -23,6 +23,7 @@ public class WSEvaluateReplyResult {
     private List<Trigger> triggers;
     private List<HandlerEvent> events;
     private String deadline;
+    private Boolean flush;
 
     public WSEvaluateReplyResult() {}
 
@@ -52,4 +53,6 @@ public class WSEvaluateReplyResult {
     public void setEvents(List<HandlerEvent> events) { this.events = events; }
     public String getDeadline() { return deadline; }
     public void setDeadline(String deadline) { this.deadline = deadline; }
+    public Boolean getFlush() { return flush; }
+    public void setFlush(Boolean flush) { this.flush = flush; }
 }
