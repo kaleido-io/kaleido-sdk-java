@@ -109,6 +109,26 @@ class StageDirectorHelperTest {
     }
 
     @Test
+    void flushIsCarriedOnEveryOutcome() {
+        var director = new StageDirector("deploy", "/output", null, null, "failed");
+        for (var actionResult : List.of(
+                ActionResult.complete().withCustomStage("next").withFlush(),
+                ActionResult.waiting().withFlush(),
+                ActionResult.transientError(new RuntimeException("retry")).withFlush(),
+                ActionResult.hardFailure(new RuntimeException("boom")).withFlush(),
+                ActionResult.complete().withFlush())) { // no next stage: error result
+            var result = StageDirectorHelper.mapOutput(director, transaction(null), actionResult);
+            assertEquals(Boolean.TRUE, result.getFlush(), actionResult.result().toString());
+        }
+    }
+
+    @Test
+    void flushIsUnsetByDefault() {
+        var result = StageDirectorHelper.mapOutput(DIRECTOR, transaction(null), ActionResult.complete());
+        assertNull(result.getFlush());
+    }
+
+    @Test
     void hardFailureDirectsToFailureStageWithErrorState() throws Exception {
         var result = StageDirectorHelper.mapOutput(DIRECTOR, transaction(null),
                 ActionResult.hardFailure(new RuntimeException("boom"))

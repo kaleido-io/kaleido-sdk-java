@@ -49,6 +49,8 @@ public final class StageDirectorHelper {
             ActionResult actionResult) {
 
         var replyResult = new WSEvaluateReplyResult();
+        var flush = actionResult.flush() ? Boolean.TRUE : null;
+        replyResult.setFlush(flush);
         var result = actionResult.result();
         var error = actionResult.error();
         var output = actionResult.output();
@@ -132,7 +134,9 @@ public final class StageDirectorHelper {
                     var next = customStage != null ? customStage : stageDirector.nextStage();
                     if (next == null || next.isEmpty()) {
                         error = SDKErrors.newError(SDKErrors.MSG_DIRECTOR_NEXT_STAGE_MISSING);
-                        return WSEvaluateReplyResult.error(error.getMessage());
+                        var errorResult = WSEvaluateReplyResult.error(error.getMessage());
+                        errorResult.setFlush(flush);
+                        return errorResult;
                     }
                     replyResult.setStage(next);
                     log.debug("Transaction {} evaluated successfully and will transition to nextStage '{}'",

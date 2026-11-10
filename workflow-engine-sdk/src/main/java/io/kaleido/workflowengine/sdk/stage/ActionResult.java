@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * Outcome returned by a directed action handler: the {@link EvalResult} plus
  * optional output, error, triggers, extra state updates, custom stage
- * override, events, and deadline.
+ * override, events, deadline, and flush.
  */
 public final class ActionResult {
 
@@ -29,6 +29,13 @@ public final class ActionResult {
     private String subflow;
     private List<HandlerEvent> events;
     private String deadline;
+    /**
+     * Commit this result, and every earlier write of the executor, before the transaction is evaluated again. Set it
+     * when a later action exposes this output outside the engine and cannot reproduce it exactly, such as a signed
+     * transaction's hash before it is submitted, or when the result allocates from a shared ordered resource such as
+     * a nonce.
+     */
+    private boolean flush;
 
     private ActionResult(EvalResult result) {
         this.result = result;
@@ -113,6 +120,18 @@ public final class ActionResult {
         return this;
     }
 
+    /**
+     * Commits this result, and every earlier write of the executor, before the
+     * transaction is evaluated again. Without it the next evaluation can overlap
+     * the commit, and a crash can redo up to two evaluations of the transaction.
+     * Use it before an action with an external effect that cannot be repeated
+     * safely, such as broadcasting a signed transaction.
+     */
+    public ActionResult withFlush() {
+        this.flush = true;
+        return this;
+    }
+
     public EvalResult result() { return result; }
     public JsonNode output() { return output; }
     public Exception error() { return error; }
@@ -123,4 +142,5 @@ public final class ActionResult {
     public String subflow() { return subflow; }
     public List<HandlerEvent> events() { return events; }
     public String deadline() { return deadline; }
+    public boolean flush() { return flush; }
 }
