@@ -68,6 +68,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Internal runtime that manages the WebSocket connection to the workflow
@@ -91,6 +92,12 @@ public class HandlerRuntime implements ProxyAdapterRuntime, Closeable {
     private final CompletableFuture<Void> stoppedFuture = new CompletableFuture<>();
 
     private volatile WebSocket webSocket;
+    /**
+     * The JDK WebSocket allows one text send in flight and throws "Send pending"
+     * for any other. Use a ReentrantLock rather than synchronized to queue the
+     * sender threads up without pinning their carrier threads.
+     */
+    private final ReentrantLock sendLock = new ReentrantLock();
 
     // Built once at start rather than per connection attempt, so unreadable or
     // malformed TLS material fails startup instead of retrying forever.
@@ -313,7 +320,13 @@ public class HandlerRuntime implements ProxyAdapterRuntime, Closeable {
             return;
         }
         try {
-            ws.sendText(JSON.MAPPER.writeValueAsString(message), true).join();
+            var json = JSON.MAPPER.writeValueAsString(message);
+            sendLock.lock();
+            try {
+                ws.sendText(json, true).join();
+            } finally {
+                sendLock.unlock();
+            }
         } catch (Exception e) {
             log.error("Failed to send WS message", e);
         }
