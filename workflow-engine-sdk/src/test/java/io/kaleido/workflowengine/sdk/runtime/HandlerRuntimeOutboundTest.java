@@ -74,8 +74,7 @@ class HandlerRuntimeOutboundTest {
     /**
      * Handlers reply from their own virtual threads, so sends race. The JDK
      * WebSocket allows one text send in flight and throws "Send pending" for
-     * the rest, which used to drop replies and leave the engine waiting for
-     * its ack timeout. Every concurrent send must arrive.
+     * the rest. Check that's handled properly, so all concurrent send arrive.
      */
     @Test
     void concurrentSendsAreAllDelivered() throws Exception {
